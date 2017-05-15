@@ -6,7 +6,7 @@
 #
 ################################################################################
 
-VERSION="2.1.4"
+VERSION="2.1.5"
 
 ################################################################################
 # Common
@@ -554,21 +554,21 @@ container_mounted()
     fi
 }
 
-fs_check(){
-    is_mounted "${CHROOT_DIR}" && return 0
-    case "$TARGET_TYPE" in
-    file)
-        local loop_device
-        loop_device="$(losetup -f 2>&1 |grep -o -E '/dev/.*loop[0-9]+')"
-        [ -z "$loop_device" ] && return 0
-        losetup "${loop_device}" "${TARGET_PATH}"
-        e2fsck -p "${loop_device}"
-        losetup -d "${loop_device}"
+fs_check()
+{
+    if is_mounted "${CHROOT_DIR}"; then
+        return 1
+    fi
+    if [ -z "$(which e2fsck)" ]; then
+        return 1
+    fi
+    case "${TARGET_TYPE}" in
+    file|partition)
+        e2fsck -p "${TARGET_PATH}" 1>&2
+        return 0
     ;;
-    partition)
-        e2fsck -p "${TARGET_PATH}"
     esac
-    return 0
+    return 1
 }
 
 mount_part()
@@ -704,9 +704,11 @@ container_mount()
         return $?
     fi
 
-    fs_check
-
     params_check TARGET_PATH || return 1
+
+    msg -n "Checking file system ... "
+    fs_check
+    is_ok "skip" "done"
 
     msg "Mounting partitions: "
     local item
