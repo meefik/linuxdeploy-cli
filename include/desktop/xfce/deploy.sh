@@ -38,6 +38,6 @@ do_configure()
 {
     msg ":: Configuring ${COMPONENT} ... "
     local xsession="${CHROOT_DIR}$(user_home ${USER_NAME})/.xsession"
-    echo 'startxfce4' > "${xsession}"
+    echo 'exec dbus-run-session xfce4-session' > "${xsession}"
     return 0
 }

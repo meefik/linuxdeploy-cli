@@ -38,6 +38,6 @@ do_configure()
 {
     msg ":: Configuring ${COMPONENT} ... "
     local xsession="${CHROOT_DIR}$(user_home ${USER_NAME})/.xsession"
-    echo 'startlxde' > "${xsession}"
+    echo 'exec startlxde' > "${xsession}"
     return 0
 }

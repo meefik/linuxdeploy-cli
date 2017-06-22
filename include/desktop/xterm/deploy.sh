@@ -38,6 +38,6 @@ do_configure()
 {
     msg ":: Configuring ${COMPONENT} ... "
     local xsession="${CHROOT_DIR}$(user_home ${USER_NAME})/.xsession"
-    echo 'xterm -max' > "${xsession}"
+    echo 'exec xterm -max' > "${xsession}"
     return 0
 }
