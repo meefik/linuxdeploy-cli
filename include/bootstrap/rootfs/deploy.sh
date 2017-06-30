@@ -2,8 +2,7 @@
 # Linux Deploy Component
 # (c) Anton Skshidlevsky <meefik@gmail.com>, GPLv3
 
-[ -n "${TARGET_TYPE}" ] || TARGET_TYPE="directory"
-[ -n "${TARGET_PATH}" ] || TARGET_PATH="${ENV_DIR}/rootfs/${PROFILE}"
+[ -n "${TARGET_TYPE}" ] || TARGET_TYPE="custom"
 [ -n "${FS_TYPE}" ] || FS_TYPE="auto"
 [ -n "${DISK_SIZE}" ] || DISK_SIZE="0"
 
@@ -119,7 +118,7 @@ do_help()
 {
 cat <<EOF
    --target-type="${TARGET_TYPE}"
-     The container deployment type, can specify "file", "directory", "partition" or "ram".
+     The container deployment type, can specify "file", "directory", "partition", "ram" or "custom".
 
    --target-path="${TARGET_PATH}"
      Installation path depends on the type of deployment.

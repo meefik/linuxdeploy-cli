@@ -343,9 +343,7 @@ params_check()
         fi
     done
     if [ -n "${params_lost}" ]; then
-        if [ "${DEBUG_MODE}" = "true" ]; then
-            msg "Missing parameters:${params_lost}"
-        fi
+        msg "Missing parameters:${params_lost}"
         return 1
     fi
     return 0
