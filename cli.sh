@@ -312,7 +312,7 @@ params_parse()
         local item key val
         for item in "$@"
         do
-            key=$(expr "${item}" : '--\([0-9a-z-]\{1,32\}=\{0,1\}\)' | tr '\-abcdefghijklmnopqrstuvwxyz' '\_ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+            key=$(expr "${item}" : '--\([0-9a-z-]\{1,32\}=\{0,1\}\)' | sed 'y/-abcdefghijklmnopqrstuvwxyz/_ABCDEFGHIJKLMNOPQRSTUVWXYZ/')
             if [ -n "${key##*=*}" ]; then
                 val="true"
             else
