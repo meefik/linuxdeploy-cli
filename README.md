@@ -1,6 +1,6 @@
 # Linux Deploy CLI
 
-Copyright (C) 2015-2016 Антон Скшидлевский, GPLv3
+Copyright (C) 2015-2017 Anton Skshidlevsky, GPLv3
 
 Приложение с интерфейсом для командной строки, предназначенное для автоматизации процесса установки, конфигурирования и запуска GNU/Linux дистрибутивов внутри контейнера chroot. Приложение может работать как в обычных десктопных Linux-дистрибутивах, так и на мобильных платформах, основанных на ядре Linux, при условии соблюдения необходимых зависимостей (все зависимости могут быть собраны статически). Приложения из Linux-дистрибутива запускаются в chroot окружении, работают параллельно с основной системой и сопоставимы с ней по скорости. Поскольку работа Linux Deploy базируется на системном вызове ядра Linux, то в роли "гостевых" систем могут выступать только дистрибутивы Linux.
 
@@ -14,17 +14,19 @@ Copyright (C) 2015-2016 Антон Скшидлевский, GPLv3
 
 Для расширения возможностей приложения реализована модульная архитектура, каждый модуль здесь назван компонентом. Компоненты пишутся на Bash-совместимом языке сценариев Ash, каждый компонент представляет собой директорию с двумя основными файлами deploy.conf и deploy.sh. Реализация компонента сводится к написанию обработчиков для следующих действий: установка, настройка, запуск, остановка и вызов справки. Компоненты могут зависеть от других компонентов, есть защита от циклических зависимостей. В компоненте можно указать совместимость с конкретными версиями дистрибутивов, чтобы ограничить область его применения.
 
-Зависимости:
-* Ядро [Linux](http://kernel.org)
-* [BusyBox](https://github.com/meefik/busybox) или Bash и набор GNU утилит
-* [PRoot](https://github.com/meefik/PRoot) для работы без прав суперпользователя
-* [QEMU](http://qemu.org), пакет [qemu-user-static](https://packages.debian.org/stable/qemu-user-static) для Debian (для эмуляции ахритектуры)
-* Модуль ядра binfmt_misc (для поддержки режима эмуляции архитектуры без PRoot)
+*TODO: please, translate this text.*
 
-Использование:
+Dependencies:
+* [Linux](http://kernel.org)
+* [BusyBox](https://github.com/meefik/busybox) or Bash and GNU utils
+* [QEMU](http://qemu.org), [qemu-user-static](https://packages.debian.org/stable/qemu-user-static) for architecture emulation
+* [binfmt_misc](https://en.wikipedia.org/wiki/Binfmt_misc) module for architecture emulation without PRoot
+* [PRoot](https://github.com/meefik/PRoot) for work without superuser permissions
+
+Main help:
 ```
 USAGE:
-   linuxdeploy [OPTIONS] COMMAND ...
+   cli.sh [OPTIONS] COMMAND ...
 
 OPTIONS:
    -p NAME - configuration profile
@@ -32,80 +34,95 @@ OPTIONS:
    -t - enable trace mode
 
 COMMANDS:
-   config [...] [PARAMETERS] [NAME ...] - управление конфигурациями
-      - без параметров выводит список конфигураций
-      -r - удалить текущую конфигурацию
-      -i FILE - импортировать конфигурацию
-      -x - дамп текущей конфигурации
-      -l - список с зависимостями для подключенных или указанных компонентов
-      -a - список всех компонентов без учета совместимости
-   deploy [-i|-c] [-n NAME] [NAME ...] - установка дистрибутива и подключенных компонентов
-      -i - только установить, без конфигурирования
-      -с - только конфигурировать, без установки
-      -n NAME - пропустить установку указанного компонента
-   import <FILE|URL> - импортировать rootfs-архив (tgz, tbz2 или txz) в текущий контейнер
-   export <FILE> - экспортировать контейнер как rootfs-архив (tgz, tbz2 или txz)
-   shell [-u USER] [APP] - смонтировать контейнер, если не смонтирован, и выполнить указанную команду внутри контейнера, по умолчанию /bin/bash
-      -u USER - переключиться на указанного пользователя
-   mount - смонтировать контейнер
-   umount - размонтировать контейнер
-   start [-m] [NAME ...] - запустить все подключенные компоненты или только указанные
-      -m - смотрировать контейнер
-   stop [-u] [NAME ...] - остановить все подключенные компоненты или только указанные
-      -u - размонтировать контейнер
-   sync <URL> - синхронизировать рабочее окружение с сервером
-   status [NAME ...] - отобразить состояние контейнера и компонетнов
-   help [NAME ...] - вызвать справку
+   config [...] [PARAMETERS] [NAME ...] - configuration management
+      - without parameters displays a list of configurations
+      -r - remove the current configuration
+      -i FILE - import the configuration
+      -x - dump of the current configuration
+      -l - list of dependencies for the specified or are connected components
+      -a - list of all components without check compatibility
+   deploy [...] [-n NAME] [NAME ...] - install the distribution and included components
+      -m - mount the container before deployment
+      -i - install without configure
+      -c - configure without install
+      -n NAME - skip installation of this component
+   import FILE|URL - import a rootfs into the current container from archive (tgz, tbz2 or txz)
+   export FILE - export the current container as a rootfs archive (tgz, tbz2 or txz)
+   shell [-u USER] [COMMAND] - execute the specified command in the container, by default /bin/bash
+      -u USER - switch to the specified user
+   mount - mount the container
+   umount - unmount the container
+   start [-m] [NAME ...] - start all included or only specified components
+      -m - mount the container before start
+   stop [-u] [NAME ...] - stop all included or only specified components
+      -u - unmount the container after stop
+   sync URL - synchronize with the operating environment with server
+   status [NAME ...] - display the status of the container and components
+   help [NAME ...] - show this help or help of components
+
 ```
 
-Справка по параметрам основных компонетнов:
+Help for the parameters of the main components:
 ```
-PARAMETERS:
-   --method=chroot|proot
-     Метод контейнеризации.
+   --distrib="debian"
+     The code name of Linux distribution, which will be installed. Supported "debian", "ubuntu", "kalilinux", "fedora", "centos", "archlinux", "gentoo", "opensuse", "slackware".
 
-   --distrib=debian|ubuntu|kalilinux|fedora|centos|archlinux|gentoo|opensuse|slackware
-     Кодовое имя дистрибутива, который будет установлен.
+   --target-type="file"
+     The container deployment type, can specify "file", "directory", "partition", "ram" or "custom".
 
-   --arch=NAME
-     Архитектура сборки дистрибутива, например i386 для debian. См. информацию по конкретному дистрибутиву.
+   --target-path="/path/to/debian_x86.img"
+     Installation path depends on the type of deployment.
 
-   --suite=NAME
-     Версия дистрибутива, например wheezy для debian. См. информацию по конкретному дистрибутиву.
+   --disk-size="2000"
+     Image file size when selected type of deployment "file". Zero means the automatic selection of the image size.
 
-   --source-path=PATH
-     Источник установки дистрибутива, можно указать адрес репозитория или путь к rootfs-ахриву.
+   --fs-type="auto"
+     File system that will be created inside a image file or on a partition. Supported "ext2", "ext3", "ext4" or "auto".
 
-   --target-path=PATH
-     Путь установки, зависит от типа развертывания.
+   --arch="i386"
+     Architecture of Linux distribution, supported "armel", "armhf", "arm64", "i386" and "amd64".
 
-   --target-type=file|partition|directory|ram
-     Вариант развертывания контейнера.
+   --suite="jessie"
+     Version of Linux distribution, supported versions "wheezy", "jessie" and "stretch" (also can be used "stable", "testing" and "unstable").
 
-   --disk-size=SIZE
-     Размер файла образа, когда выбран тип развертывания "file". Ноль означает автоматический выбор размера образа.
+   --source-path="http://ftp.debian.org/debian/"
+     Installation source, can specify address of the repository or path to the rootfs archive.
 
-   --fs-type=ext2|ext3|ext4|auto
-     Файловая система, которая будет создана внутри образа или на разделе.
+   --method="chroot"
+     Containerization method "chroot" or "proot".
 
-   --emulator=PATH
-     Указать какой использовать эмулятор, по умолчанию QEMU.
+   --chroot-dir="/mnt"
+     Mount directory of the container for containerization method "chroot".
 
-   --dns=IP|auto
-     IP-адрес DNS сервера, можно указать несколько адресов через пробел.
+   --emulator="qemu-i386-static"
+     Specify which to use the emulator, by default QEMU.
 
-   --mounts=SOURCE:TARGET ...
-     Подключение ресурсов к контейнеру.
+   --mounts="/path/to/source:/path/to/target"
+     Mounts resources to the container as "SOURCE:TARGET" separated by a space.
 
-   --user-name=USER
-     Имя пользователя, который будет создан после установки дистрибутива.
+   --dns="auto"
+     IP-address of DNS server, can specify multiple addresses separated by a space.
 
-   --user-password=PASSWORD
-     Пароль пользователя будет назначен указанному пользователю.
+   --net-trigger=""
+     Path to a script inside the container to process changes the network.
 
-   --privileged-users=USERS
-     Список пользователей через пробел, которых добавить в группы Android.
+   --locale="en_US.UTF-8"
+     Localization, e.g. "ru_RU.UTF-8".
 
-   --locale=LOCALE
-     Локализация дистрибутива, например ru_RU.UTF-8.
+   --user-name="android"
+     Username that will be created in the container.
+
+   --user-password="changeme"
+     Password will be assigned to the specified user.
+
+   --privileged-users="root messagebus"
+     A list of users separated by a space to be added to Android groups.
+
 ```
+
+#### Source code
+Source code: <https://github.com/meefik/linuxdeploy-cli>.
+
+#### Donations
+<http://meefik.github.io/donate>
+

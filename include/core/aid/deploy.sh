@@ -36,7 +36,7 @@ do_help()
 {
 cat <<EOF
    --privileged-users="${PRIVILEGED_USERS}"
-     List of users separated by a space, which add to Android groups.
+     A list of users separated by a space to be added to Android groups.
 
 EOF
 }
