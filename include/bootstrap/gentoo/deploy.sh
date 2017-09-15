@@ -7,7 +7,8 @@ then
     case "$(get_platform)" in
     x86) ARCH="i686" ;;
     x86_64) ARCH="amd64" ;;
-    arm*) ARCH="armv7a_hardfp" ;;
+    arm) ARCH="armv7a_hardfp" ;;
+    arm_64) ARCH="arm64" ;;
     esac
 fi
 
@@ -107,7 +108,7 @@ do_help()
 {
 cat <<EOF
    --arch="${ARCH}"
-     Architecture of Linux distribution, supported "armv4tl", "armv5tel", "armv6j", "armv6j_hardfp", "armv7a", "armv7a_hardfp", "i486", "i686" and "amd64".
+     Architecture of Linux distribution, supported "armv4tl", "armv5tel", "armv6j", "armv6j_hardfp", "armv7a", "armv7a_hardfp", "arm64", "i486", "i686" and "amd64".
 
    --source-path="${SOURCE_PATH}"
      Installation source, can specify address of the repository or path to the rootfs archive.
