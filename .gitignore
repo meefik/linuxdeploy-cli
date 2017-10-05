@@ -1,3 +1,4 @@
 config/
 rootfs/
 tmp/
+cli.conf
