@@ -94,7 +94,8 @@ do_install()
     for package in ${basic_packages}; do
         msg -n "${package} ... "
         pkg_url=$(grep -e "^.*/${package}-[0-9][0-9\.\-].*rpm$" "${pkg_list}" | grep -m1 ${pkg_arch})
-        test "${pkg_url}"; is_ok "skip" || continue
+        test "${pkg_url}"
+        is_ok "skip" || continue
         pkg_file="${pkg_url##*/}"
         # download
         for i in 1 2 3
@@ -104,15 +105,15 @@ do_install()
         done
         [ "${package}" = "filesystem" ] && { msg "done"; continue; }
         # unpack
-        (cd "${CHROOT_DIR}"; rpm2cpio "./tmp/${pkg_file}" | cpio -idmu)
-        is_ok "fail" "done" || return 1
+        (cd "${CHROOT_DIR}"; rpm2cpio "./tmp/${pkg_file}" | cpio -idmu 2>&1)
+        is_ok || return 1
     done
 
     component_exec core/emulator
 
-    msg -n "Installing base packages ... "
+    msg "Installing base packages ... "
     chroot_exec /bin/rpm -i --force --nosignature --nodeps /tmp/*.rpm
-    is_ok "fail" "done" || return 1
+    is_ok || return 1
 
     msg -n "Clearing cache ... "
     rm -rf "${CHROOT_DIR}"/tmp/*

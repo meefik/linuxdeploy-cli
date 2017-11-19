@@ -2,11 +2,11 @@
 ################################################################################
 #
 # Linux Deploy CLI
-# (C) 2012-2016 Anton Skshidlevsky <meefik@gmail.com>, GPLv3
+# (C) 2012-2017 Anton Skshidlevsky <meefik@gmail.com>, GPLv3
 #
 ################################################################################
 
-VERSION="2.1.6"
+VERSION="2.2.0"
 
 ################################################################################
 # Common
@@ -562,7 +562,7 @@ fs_check()
     fi
     case "${TARGET_TYPE}" in
     file|partition)
-        e2fsck -p "${TARGET_PATH}" 1>&2
+        e2fsck -p "${TARGET_PATH}" >/dev/null
         return 0
     ;;
     esac
@@ -822,9 +822,9 @@ rootfs_import()
     *gz)
         msg -n "Importing rootfs from tar.gz archive ... "
         if [ -e "${rootfs_file}" ]; then
-            tar xzvf "${rootfs_file}" -C "${CHROOT_DIR}" 1>&2
+            tar xzf "${rootfs_file}" -C "${CHROOT_DIR}"
         elif [ -z "${rootfs_file##http*}" ]; then
-            wget -q -O - "${rootfs_file}" | tar xzv -C "${CHROOT_DIR}" 1>&2
+            wget -q -O - "${rootfs_file}" | tar xz -C "${CHROOT_DIR}"
         else
             msg "fail"; return 1
         fi
@@ -833,9 +833,9 @@ rootfs_import()
     *bz2)
         msg -n "Importing rootfs from tar.bz2 archive ... "
         if [ -e "${rootfs_file}" ]; then
-            tar xjvf "${rootfs_file}" -C "${CHROOT_DIR}" 1>&2
+            tar xjf "${rootfs_file}" -C "${CHROOT_DIR}"
         elif [ -z "${rootfs_file##http*}" ]; then
-            wget -q -O - "${rootfs_file}" | tar xjv -C "${CHROOT_DIR}" 1>&2
+            wget -q -O - "${rootfs_file}" | tar xj -C "${CHROOT_DIR}"
         else
             msg "fail"; return 1
         fi
@@ -844,9 +844,9 @@ rootfs_import()
     *xz)
         msg -n "Importing rootfs from tar.xz archive ... "
         if [ -e "${rootfs_file}" ]; then
-            tar xJvf "${rootfs_file}" -C "${CHROOT_DIR}" 1>&2
+            tar xJf "${rootfs_file}" -C "${CHROOT_DIR}"
         elif [ -z "${rootfs_file##http*}" ]; then
-            wget -q -O - "${rootfs_file}" | tar xJv -C "${CHROOT_DIR}" 1>&2
+            wget -q -O - "${rootfs_file}" | tar xJ -C "${CHROOT_DIR}"
         else
             msg "fail"; return 1
         fi
@@ -870,17 +870,17 @@ rootfs_export()
     case "${rootfs_file}" in
     *gz)
         msg -n "Exporting rootfs as tar.gz archive ... "
-        tar czvf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . 1>&2
+        tar czvf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . >/dev/null
         is_ok "fail" "done" || return 1
     ;;
     *bz2)
         msg -n "Exporting rootfs as tar.bz2 archive ... "
-        tar cjvf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . 1>&2
+        tar cjvf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . >/dev/null
         is_ok "fail" "done" || return 1
     ;;
     *xz)
         msg -n "Exporting rootfs as tar.xz archive ... "
-        tar cJvf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . 1>&2
+        tar cJvf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . >/dev/null
         is_ok "fail" "done" || return 1
     ;;
     *)
@@ -892,13 +892,13 @@ rootfs_export()
 
 container_status()
 {
-    local model=$(getprop ro.product.model)
+    local model=$(which getprop >/dev/null && getprop ro.product.model)
     if [ -n "${model}" ]; then
         msg -n "Device: "
         msg "${model}"
     fi
 
-    local android=$(getprop ro.build.version.release)
+    local android=$(which getprop >/dev/null && getprop ro.build.version.release)
     if [ -n "${android}" ]; then
         msg -n "Android: "
         msg "${android}"
@@ -983,12 +983,12 @@ container_status()
             local devname=$(echo ${dev} | sed -e 's@/dev@@' -e 's@.*/@@')
             [ -e "/dev/${devname}" ] && local devpath="/dev/${devname}"
             [ -e "/dev/block/${devname}" ] && local devpath="/dev/block/${devname}"
-            [ -n "${devpath}" ] && local parts=$(fdisk -l ${devpath} | grep ^/dev/ | awk '{print $1}')
+            [ -n "${devpath}" ] && local parts=$(fdisk -l ${devpath} 2>/dev/null | grep ^/dev/ | awk '{print $1}')
             local part
             for part in ${parts}
             do
-                local size=$(fdisk -l ${part} | grep 'Disk.*bytes' | awk '{ sub(/,/,""); print $3" "$4}')
-                local type=$(fdisk -l ${devpath} | grep ^${part} | tr -d '*' | awk '{str=$6; for (i=7;i<=10;i++) if ($i!="") str=str" "$i; printf("%s",str)}')
+                local size=$(fdisk -l ${part} 2>/dev/null | grep 'Disk.*bytes' | awk '{ sub(/,/,""); print $3" "$4}')
+                local type=$(fdisk -l ${devpath} 2>/dev/null | grep ^${part} | tr -d '*' | awk '{str=$6; for (i=7;i<=10;i++) if ($i!="") str=str" "$i; printf("%s",str)}')
                 msg "* ${part}  ${size} (${type})"
                 local is_partitions=1
             done
@@ -1055,7 +1055,6 @@ EOF
 
 ################################################################################
 
-# init env
 umask 0022
 unset LANG
 if [ -z "${ENV_DIR}" ]; then
@@ -1142,7 +1141,7 @@ esac
 [ -d "${TEMP_DIR}" ] || mkdir "${TEMP_DIR}"
 [ -d "${CHROOT_DIR}" ] || mkdir "${CHROOT_DIR}"
 
-# exec command
+# parse command
 OPTCMD="$1"; shift
 case "${OPTCMD}" in
 config|conf)
@@ -1333,7 +1332,6 @@ help)
         component_exec "$@"
     fi
 ;;
-
 *)
     helper
 ;;

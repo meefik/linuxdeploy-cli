@@ -42,7 +42,9 @@ do_configure()
 {
     msg ":: Configuring ${COMPONENT} ... "
     # Xwrapper.config
-    mkdir "${CHROOT_DIR}/etc/X11"
+    if [ ! -e "${CHROOT_DIR}/etc/X11" ]; then
+        mkdir "${CHROOT_DIR}/etc/X11"
+    fi
     if $(grep -q '^allowed_users' "${CHROOT_DIR}/etc/X11/Xwrapper.config"); then
         sed -i 's/^allowed_users=.*/allowed_users=anybody/g' "${CHROOT_DIR}/etc/X11/Xwrapper.config"
     else

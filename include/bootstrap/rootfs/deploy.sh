@@ -14,13 +14,17 @@ rootfs_make()
         if [ -e "${TARGET_PATH}" -a ! -f "${TARGET_PATH}" ]; then
             msg "fail"; return 1
         fi
-        mkdir -p "${TARGET_PATH%/*}"
+        if [ -n "${TARGET_PATH%/*}" -a ! -e "${TARGET_PATH%/*}" ]; then
+            mkdir -p "${TARGET_PATH%/*}"
+        fi
     ;;
     directory|ram)
         if [ -e "${TARGET_PATH}" -a ! -d "${TARGET_PATH}" ]; then
             msg "fail"; return 1
         fi
-        mkdir -p "${TARGET_PATH}"
+        if [ ! -e "${TARGET_PATH}" ]; then
+            mkdir -p "${TARGET_PATH}"
+        fi
     ;;
     partition)
         if [ ! -b "${TARGET_PATH}" ]; then
@@ -50,14 +54,14 @@ rootfs_make()
         let file_size="${file_size}/1048576"
         if [ "${DISK_SIZE}" != "${file_size}" ]; then
             msg -n "Making new disk image (${DISK_SIZE} MB) ... "
-            dd if=/dev/zero of="${TARGET_PATH}" bs=1048576 seek="$(expr ${DISK_SIZE} - 1)" count=1 ||
-            dd if=/dev/zero of="${TARGET_PATH}" bs=1048576 count="${DISK_SIZE}"
+            dd if=/dev/zero of="${TARGET_PATH}" bs=1048576 seek="$(expr ${DISK_SIZE} - 1)" count=1 1>/dev/null 2>/dev/null ||
+            dd if=/dev/zero of="${TARGET_PATH}" bs=1048576 count="${DISK_SIZE}" >/dev/null
             is_ok "fail" "done" || return 1
         fi
     fi
 
     if [ "${TARGET_TYPE}" = "file" -o "${TARGET_TYPE}" = "partition" ]; then
-        msg -n "Making file system ... "
+        msg -n "Making file system (${FS_TYPE}) ... "
         local loop_exist=$(losetup -a | grep -c "${TARGET_PATH}")
         local img_mounted=$(grep -c "${TARGET_PATH}" /proc/mounts)
         if [ "${loop_exist}" -ne 0 -o "${img_mounted}" -ne 0 ]; then
@@ -74,7 +78,7 @@ rootfs_make()
     fi
 
     if [ "${TARGET_TYPE}" = "directory" ]; then
-        if [ -d "${TARGET_PATH}" ]; then
+        if [ -e "${TARGET_PATH}" ]; then
             chmod -R 755 "${TARGET_PATH}"
             rm -rf "${TARGET_PATH}"
         fi
@@ -88,7 +92,7 @@ rootfs_make()
             let DISK_SIZE="${ram_free}/1024"
         fi
         msg -n "Making new disk image (${DISK_SIZE} MB) ... "
-        if [ ! -d "${TARGET_PATH}" ]; then
+        if [ ! -e "${TARGET_PATH}" ]; then
             mkdir "${TARGET_PATH}"
         fi
         mount -t tmpfs -o size="${DISK_SIZE}M" tmpfs "${TARGET_PATH}"

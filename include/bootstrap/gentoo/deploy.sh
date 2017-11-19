@@ -60,14 +60,15 @@ do_install()
     arm*) local repo_url="${SOURCE_PATH%/}/arm/autobuilds" ;;
     esac
     local stage3="${CHROOT_DIR}/tmp/latest-stage3.tar.bz2"
-    local archive=$(wget -q -O - "${repo_url}/latest-stage3-${ARCH}.txt" | grep -v ^# | awk '{print $1}')
-    test "${archive}"; is_ok "fail" "done" || return 1
+    local archive=$(wget -q -O - "${repo_url}/latest-stage3-${ARCH}.txt" | grep -v '^#' | awk '{print $1}')
+    test "${archive}"
+    is_ok "fail" "done" || return 1
 
     msg -n "Retrieving stage3 archive ... "
     local i
     for i in 1 2 3
     do
-        wget -c -O "${stage3}" "${repo_url}/${archive}" && break
+        wget -q -c -O "${stage3}" "${repo_url}/${archive}" && break
         sleep 30s
     done
     is_ok "fail" "done" || return 1
@@ -86,19 +87,19 @@ do_install()
     emerge_repository
     is_ok "fail" "done"
 
-    msg -n "Updating portage tree ... "
+    msg "Updating portage tree ... "
     (set -e
         chroot_exec emerge --sync
         chroot_exec eselect profile set 1
     exit 0) 1>/dev/null
-    is_ok "fail" "done" || return 1
+    is_ok || return 1
 
     msg "Installing base packages: "
     emerge_install sudo
     is_ok || return 1
 
     msg -n "Updating configuration ... "
-    find "${CHROOT_DIR}/" -name "._cfg0000_*" | while read f; do mv "${f}" "$(echo ${f} | sed 's/._cfg0000_//g')"; done
+    find "${CHROOT_DIR}/" -name "._cfg0000_*" -not -path "/proc/*" | while read f; do mv "${f}" "$(echo ${f} | sed 's/._cfg0000_//g')"; done
     is_ok "skip" "done"
 
     return 0

@@ -1,4 +1,4 @@
-config/
-rootfs/
-tmp/
-cli.conf
+/config/
+/rootfs/
+/tmp/
+/cli.conf

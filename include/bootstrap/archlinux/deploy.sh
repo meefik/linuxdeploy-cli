@@ -5,9 +5,9 @@
 if [ -z "${ARCH}" ]
 then
     case "$(get_platform)" in
-    x86) ARCH="i386" ;;
+    x86) ARCH="i686" ;;
     x86_64) ARCH="x86_64" ;;
-    arm) ARCH="armhfp" ;;
+    arm) ARCH="armv7h" ;;
     arm_64) ARCH="aarch64" ;;
     esac
 fi
@@ -54,7 +54,7 @@ do_install()
 
     msg ":: Installing ${COMPONENT} ... "
 
-    local basic_packages="filesystem acl archlinux-keyring attr bash bzip2 ca-certificates coreutils cracklib curl db e2fsprogs expat findutils gawk gcc-libs gdbm glibc gmp gnupg gpgme grep icu keyutils krb5 libarchive libassuan libcap libgcrypt libgpg-error libgssglue libidn libksba libldap libnghttp2 libpsl libsasl libssh2 libtirpc linux-api-headers lz4 lzo ncurses nettle openssl pacman pacman-mirrorlist pam pambase perl pinentry pth readline run-parts sed shadow sudo tzdata util-linux xz which zlib"
+    local basic_packages="filesystem acl archlinux-keyring attr bash bzip2 ca-certificates coreutils cracklib curl db e2fsprogs expat findutils gawk gcc-libs gdbm glibc gmp gnupg gpgme grep icu keyutils krb5 libarchive libassuan libcap libgcrypt libgpg-error libgssglue libidn2 libksba libldap libnghttp2 libpsl libsasl libssh2 libtirpc libunistring linux-api-headers lz4 lzo ncurses nettle openssl pacman pacman-mirrorlist pam pambase perl pinentry pth readline run-parts sed shadow sudo tzdata util-linux xz which zlib"
 
     case "$(get_platform ${ARCH})" in
     x86*) local repo_url="${SOURCE_PATH%/}/core/os/${ARCH}" ;;
@@ -129,7 +129,7 @@ do_help()
 {
 cat <<EOF
    --arch="${ARCH}"
-     Architecture of Linux distribution, supported "arm", "aarch64", "i386" and "x86_64".
+     Architecture of Linux distribution, supported "arm", "armv6h", "armv7h", "aarch64", "i686" and "x86_64".
 
    --source-path="${SOURCE_PATH}"
      Installation source, can specify address of the repository or path to the rootfs archive.

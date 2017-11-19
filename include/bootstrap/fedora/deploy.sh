@@ -51,7 +51,7 @@ do_install()
 
     msg ":: Installing ${COMPONENT} ... "
 
-    local basic_packages="filesystem audit-libs basesystem bash bash-completion bzip2-libs ca-certificates chkconfig coreutils cpio cracklib cracklib-dicts crypto-policies cryptsetup-libs curl cyrus-sasl-lib dbus dbus-libs deltarpm diffutils dnf dnf-conf elfutils-libelf elfutils-libs expat fedora-release fedora-repos file-libs fipscheck fipscheck-lib gamin gawk gdbm glib2 glibc glibc-common gmp gnupg2 gnutls gpgme grep gzip hawkey hwdata info keyutils-libs kmod kmod-libs krb5-libs libacl libarchive libassuan libattr libblkid libcap libcap-ng libcom_err libcomps libcrypt libcurl libdb libdb-utils libdb4 libffi libgcc libgcrypt libgpg-error libidn libmetalink libmicrohttpd libmount libnghttp2 libpipeline libpsl libpwquality librepo libreport-filesystem libseccomp libselinux libselinux-utils libsemanage libsepol libsmartcols libsolv libssh2 libstdc++ libtasn1 libunistring libuser libutempter libuuid libverto libxml2 lua lua-libs lz4 lzo man-db man-pages ncurses ncurses-base ncurses-libs nettle nspr nss nss-softokn nss-softokn-freebl nss-sysinit nss-tools nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pinentry pkgconfig policycoreutils popt pth pygpgme pyliblzma python python-chardet python-kitchen python-libs python-pycurl python-six python-urlgrabber python3 python3-dnf python3-hawkey python3-iniparse python3-libcomps python3-librepo python3-libs python3-pip python3-pygpgme python3-rpm python3-setuptools python3-six pyxattr qrencode-libs readline rootfiles rpm rpm-build-libs rpm-libs rpm-plugin-selinux rpm-plugin-systemd-inhibit rpm-python rpm-python3 sed selinux-policy setup shadow-utils shared-mime-info sqlite sqlite-libs sudo system-python system-python-libs systemd systemd-libs tcp_wrappers-libs trousers tzdata ustr util-linux vim-minimal which xz-libs zlib"
+    local basic_packages="filesystem audit-libs basesystem bash bash-completion bzip2-libs ca-certificates chkconfig coreutils cpio cracklib cracklib-dicts crypto-policies cryptsetup-libs curl cyrus-sasl-lib dbus dbus-libs deltarpm device-mapper-libs dnf dnf-conf elfutils-libelf elfutils-libs expat fedora-release fedora-repos file-libs gawk gdbm glib2 glibc glibc-common glibc-locale-source gmp gnupg2 gnutls gpgme grep gzip hawkey info iptables-libs keyutils-libs kmod-libs krb5-libs libacl libarchive libassuan libattr libblkid libcap libcap-ng libcom_err libcomps libcrypt libcurl libdb libdb-utils libdnf libffi libgcc libgcrypt libgpg-error libidn libidn2 libmetalink libmount libnghttp2 libpcap libpsl libpwquality librepo libreport-filesystem libseccomp libselinux libselinux-utils libsemanage libsepol libsigsegv libsmartcols libsolv libssh2 libtasn1 libunistring libutempter libuuid libverto libxml2 libzstd lua-libs lz4 lz4-libs lzo mpfr ncurses ncurses-base ncurses-libs nettle nspr nss nss-softokn nss-softokn-freebl nss-sysinit nss-tools nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pcre2 popt python3 python3-dnf python3-gpg python3-hawkey python3-iniparse python3-libcomps python3-librepo python3-libs python3-pip python3-pygpgme python3-rpm python3-setuptools python3-six qrencode-libs readline rpm rpm-build-libs rpm-libs rpm-plugin-selinux rpm-plugin-systemd-inhibit sed selinux-policy shadow-utils sqlite-libs sudo system-python system-python-libs systemd systemd-libs tzdata ustr util-linux vim-minimal which xz-libs zlib"
 
     if [ "${ARCH}" = "aarch64" ]
     then local repo_url="${SOURCE_PATH%/}/fedora-secondary/releases/${SUITE}/Everything/${ARCH}/os"
@@ -84,7 +84,8 @@ do_install()
     for package in ${basic_packages}; do
         msg -n "${package} ... "
         pkg_url=$(grep -e "^.*/${package}-[0-9r][0-9\.\-].*rpm$" "${pkg_list}" | grep -m1 ${pkg_arch})
-        test "${pkg_url}"; is_ok "skip" || continue
+        test "${pkg_url}"
+        is_ok "skip" || continue
         pkg_file="${pkg_url##*/}"
         # download
         for i in 1 2 3
@@ -94,15 +95,15 @@ do_install()
         done
         [ "${package}" = "filesystem" ] && { msg "done"; continue; }
         # unpack
-        (cd "${CHROOT_DIR}"; rpm2cpio "./tmp/${pkg_file}" | cpio -idmu)
-        is_ok "fail" "done" || return 1
+        (cd "${CHROOT_DIR}"; rpm2cpio "./tmp/${pkg_file}" | cpio -idmu 2>&1)
+        is_ok || return 1
     done
 
     component_exec core/emulator
 
-    msg -n "Installing base packages ... "
+    msg "Installing base packages ... "
     chroot_exec /bin/rpm -i --force --nosignature --nodeps /tmp/*.rpm
-    is_ok "fail" "done" || return 1
+    is_ok || return 1
 
     msg -n "Clearing cache ... "
     rm -rf "${CHROOT_DIR}"/tmp/*
@@ -128,7 +129,7 @@ cat <<EOF
      Architecture of Linux distribution, supported "armhfp", "aarch64", "i386" and "x86_64".
 
    --suite="${SUITE}"
-     Version of Linux distribution, supported versions "23" and "24".
+     Version of Linux distribution, supported versions "25", "26" and "27".
 
    --source-path="${SOURCE_PATH}"
      Installation source, can specify address of the repository or path to the rootfs archive.

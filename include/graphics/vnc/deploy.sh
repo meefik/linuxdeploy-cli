@@ -58,7 +58,7 @@ do_configure()
     echo ${USER_PASSWORD} | chroot_exec -u root vncpasswd -f > "${vnc_home_chroot}/passwd" ||
     echo "MPTcXfgXGiY=" | base64 -d > "${vnc_home_chroot}/passwd"
     chmod 600 "${vnc_home_chroot}/passwd"
-    rm "${vnc_home_chroot}/xstartup"
+    remove_files "${vnc_home_chroot}/xstartup"
     ln -s ../.xinitrc "${vnc_home_chroot}/xstartup"
     chroot_exec -u root chown -R ${USER_NAME}:${USER_NAME} "${vnc_home}"
     return 0
