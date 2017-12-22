@@ -3,7 +3,7 @@
 # (c) Anton Skshidlevsky <meefik@gmail.com>, GPLv3
 
 [ -n "${TARGET_TYPE}" ] || TARGET_TYPE="custom"
-[ -n "${FS_TYPE}" ] || FS_TYPE="auto"
+[ -n "${FS_TYPE}" ] || FS_TYPE="ext2"
 [ -n "${DISK_SIZE}" ] || DISK_SIZE="0"
 
 rootfs_make()
@@ -67,13 +67,14 @@ rootfs_make()
         if [ "${loop_exist}" -ne 0 -o "${img_mounted}" -ne 0 ]; then
             msg "fail"; return 1
         fi
-        local fs_args
-        if [ -n "${FS_TYPE}" -a "${FS_TYPE}" != "auto" ]; then
-            fs_args="-t ${FS_TYPE}"
-        fi
+        # for replace busybox mke2fs
         local makefs=$(which mke2fs)
-        [ -n "${makefs}" ] || makefs=mke2fs
-        ${makefs} -qF -O ^has_journal ${fs_args} "${TARGET_PATH}" >/dev/null
+        if [ -n "${makefs}" ]; then
+            makefs="${makefs} -qF -t ${FS_TYPE}"
+        else
+            makefs="mke2fs -qF"
+        fi
+        ${makefs} "${TARGET_PATH}" >/dev/null
         is_ok "fail" "done" || return 1
     fi
 
@@ -131,7 +132,7 @@ cat <<EOF
      Image file size when selected type of deployment "file". Zero means the automatic selection of the image size.
 
    --fs-type="${FS_TYPE}"
-     File system that will be created inside a image file or on a partition. Supported "ext2", "ext3", "ext4" or "auto".
+     File system that will be created inside a image file or on a partition. Supported "ext2", "ext3" or "ext4".
 
 EOF
 }
