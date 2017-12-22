@@ -557,12 +557,13 @@ fs_check()
     if is_mounted "${CHROOT_DIR}"; then
         return 1
     fi
-    if [ -z "$(which e2fsck)" ]; then
+    local checkfs=$(which e2fsck)
+    if [ -z "${checkfs}" ]; then
         return 1
     fi
     case "${TARGET_TYPE}" in
     file|partition)
-        e2fsck -p "${TARGET_PATH}" >/dev/null
+        ${checkfs} -p "${TARGET_PATH}" >/dev/null
         return 0
     ;;
     esac
