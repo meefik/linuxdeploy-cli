@@ -44,7 +44,7 @@ do_start()
     msg -n ":: Starting ${COMPONENT} ... "
     is_stopped
     is_ok "skip" || return 0
-    remove_files /run/dbus/pid /run/dbus/messagebus.pid /var/run/dbus/pid /var/run/dbus/messagebus.pid
+    remove_files /run/dbus/pid /run/dbus/messagebus.pid /var/run/messagebus.pid
     chroot_exec -u root dbus-daemon --system --fork
     is_ok "fail" "done"
     return 0
@@ -53,7 +53,7 @@ do_start()
 do_stop()
 {
     msg -n ":: Stopping ${COMPONENT} ... "
-    kill_pids /run/dbus/pid /run/dbus/messagebus.pid /var/run/dbus/pid /var/run/dbus/messagebus.pid
+    kill_pids /run/dbus/pid /run/dbus/messagebus.pid /var/run/messagebus.pid
     is_ok "fail" "done"
     return 0
 }
@@ -61,7 +61,7 @@ do_stop()
 do_status()
 {
     msg -n ":: ${COMPONENT} ... "
-    is_started /run/dbus/pid /run/dbus/messagebus.pid /var/run/dbus/pid /var/run/dbus/messagebus.pid
+    is_started /run/dbus/pid /run/dbus/messagebus.pid /var/run/messagebus.pid
     is_ok "stopped" "started"
     return 0
 }

@@ -95,8 +95,8 @@ do_install()
         done
         [ "${package}" = "filesystem" ] && { msg "done"; continue; }
         # unpack
-        (cd "${CHROOT_DIR}"; rpm2cpio "./tmp/${pkg_file}" | cpio -idmu 2>&1)
-        is_ok || return 1
+        (cd "${CHROOT_DIR}"; rpm2cpio "./tmp/${pkg_file}" | cpio -idmu >/dev/null)
+        is_ok "fail" "done" || return 1
     done
 
     component_exec core/emulator

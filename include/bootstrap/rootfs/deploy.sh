@@ -69,7 +69,7 @@ rootfs_make()
         fi
         # for replace busybox mke2fs
         local makefs=$(which mke2fs)
-        if [ -n "${makefs}" ]; then
+        if [ -n "${makefs}" ] && ${makefs} -V 2>/dev/null ; then
             makefs="${makefs} -qF -t ${FS_TYPE}"
         else
             makefs="mke2fs -qF"
