@@ -748,7 +748,11 @@ container_umount()
             if [ -z "${part_name##*selinux*}" -a -e "/sys/fs/selinux/enforce" -a -e "${TEMP_DIR}/selinux_state" ]; then
                 cat "${TEMP_DIR}/selinux_state" > /sys/fs/selinux/enforce
             fi
-            umount ${part}
+            for i in 1 2 3
+            do
+                umount ${part} && break
+                sleep 1
+            done
             is_ok "fail" "done"
             is_mnt=1
         done
