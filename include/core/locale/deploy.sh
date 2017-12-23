@@ -24,10 +24,6 @@ do_configure()
     fedora)
         echo "LANG=${LOCALE}" > "${CHROOT_DIR}/etc/sysconfig/i18n"
     ;;
-    opensuse)
-        echo "RC_LANG=${LOCALE}" > "${CHROOT_DIR}/etc/sysconfig/language"
-        echo 'ROOT_USES_LANG="yes"' >> "${CHROOT_DIR}/etc/sysconfig/language"
-    ;;
     slackware)
         sed -i "s|^export LANG=.*|export LANG=${LOCALE}|g" "${CHROOT_DIR}/etc/profile.d/lang.sh"
     ;;

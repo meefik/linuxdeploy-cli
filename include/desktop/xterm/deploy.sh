@@ -23,10 +23,6 @@ do_install()
         packages="xorg-x11-server-utils xorg-x11-fonts-misc dejavu-* xterm"
         yum_install ${packages}
     ;;
-    opensuse:*)
-        packages="xorg-x11-fonts-core dejavu-fonts xauth xterm"
-        zypper_install ${packages}
-    ;;
     gentoo:*)
         packages="x11-apps/xauth x11-terms/xterm"
         emerge_install ${packages}

@@ -19,14 +19,6 @@ do_install()
         packages="xorg-x11-server-utils xorg-x11-fonts-misc dejavu-* @xfce-desktop-environment"
         dnf_install ${packages}
     ;;
-    centos:*)
-        packages="xorg-x11-server-utils xorg-x11-fonts-misc dejavu-* @xfce-desktop-environment"
-        yum_install ${packages}
-    ;;
-    opensuse:*)
-        packages="xorg-x11-fonts-core dejavu-fonts xauth patterns-openSUSE-xfce"
-        zypper_install ${packages}
-    ;;
     gentoo:*)
         packages="x11-apps/xauth xfce-base/xfce4-meta"
         emerge_install ${packages}

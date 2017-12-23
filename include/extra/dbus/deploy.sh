@@ -23,10 +23,6 @@ do_install()
         packages="dbus"
         yum_install ${packages}
     ;;
-    opensuse:*)
-        packages="dbus"
-        zypper_install ${packages}
-    ;;
     gentoo:*)
         packages="sys-apps/dbus"
         emerge_install ${packages}

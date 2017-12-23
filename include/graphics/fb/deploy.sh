@@ -27,10 +27,6 @@ do_install()
         packages="xorg-x11-xinit xorg-x11-server-Xorg xorg-x11-drv-fbdev xorg-x11-drv-evdev"
         yum_install ${packages}
     ;;
-    opensuse:*)
-        packages="xinit xorg-x11-server xf86-video-fbdev xf86-input-evdev"
-        zypper_install ${packages}
-    ;;
     gentoo:*)
         packages="xinit xorg-server"
         emerge_install ${packages}
@@ -77,12 +73,6 @@ do_configure()
             sed -i 's|^\(VIDEO_CARDS=\).*|\1"fbdev"|g' "${CHROOT_DIR}/etc/portage/make.conf"
         else
             echo 'VIDEO_CARDS="fbdev"' >> "${CHROOT_DIR}/etc/portage/make.conf"
-        fi
-    ;;
-    opensuse)
-        if [ -e "${CHROOT_DIR}/usr/bin/Xorg" ]
-        then
-            chmod +s "${CHROOT_DIR}/usr/bin/Xorg"
         fi
     ;;
     esac

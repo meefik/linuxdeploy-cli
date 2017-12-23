@@ -26,10 +26,6 @@ do_install()
         packages="openssh-server"
         yum_install ${packages}
     ;;
-    opensuse:*)
-        packages="openssh"
-        zypper_install ${packages}
-    ;;
     gentoo:*)
         packages="net-misc/openssh"
         emerge_install ${packages}

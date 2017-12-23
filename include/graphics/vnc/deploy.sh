@@ -30,10 +30,6 @@ do_install()
         packages="tigervnc-server"
         yum_install ${packages}
     ;;
-    opensuse:*)
-        packages="tightvnc"
-        zypper_install ${packages}
-    ;;
     gentoo:*)
         # set server USE flag for tightvnc
         if ! $(grep -q '^net-misc/tightvnc' "${CHROOT_DIR}/etc/portage/package.use"); then
