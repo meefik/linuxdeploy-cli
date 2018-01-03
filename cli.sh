@@ -2,11 +2,11 @@
 ################################################################################
 #
 # Linux Deploy CLI
-# (C) 2012-2017 Anton Skshidlevsky <meefik@gmail.com>, GPLv3
+# (C) 2012-2018 Anton Skshidlevsky <meefik@gmail.com>, GPLv3
 #
 ################################################################################
 
-VERSION="2.2.1"
+VERSION="2.2.2"
 
 ################################################################################
 # Common
@@ -51,6 +51,12 @@ get_platform()
     x86_64|amd64)
         echo "x86_64"
     ;;
+    mips64*)
+        echo "mips_64"
+    ;;
+    mips*)
+        echo "mips"
+    ;;
     *)
         echo "unknown"
     ;;
@@ -67,6 +73,7 @@ get_qemu()
         case "${guest_platform}" in
         arm*) qemu="qemu-arm-static" ;;
         x86*) qemu="qemu-i386-static" ;;
+        mips*) qemu="qemu-mipsel-static" ;;
         *) qemu="" ;;
         esac
     fi

@@ -18,7 +18,7 @@ do_start()
 
     msg -n ":: Starting ${COMPONENT} ... "
     local source_path=$(which ${EMULATOR})
-    local target_path="/usr/local/bin/${EMULATOR}"
+    local target_path="/usr/bin/${EMULATOR}"
     if [ ! -e "${CHROOT_DIR}${target_path%/*}" ]; then
         mkdir -p "${CHROOT_DIR}${target_path%/*}"
     fi
@@ -29,8 +29,8 @@ do_start()
     then
         mount -o bind "${source_path}" "${CHROOT_DIR}${target_path}"
     fi
-    case "$(get_platform)" in
-    arm*)
+    case "${EMULATOR}" in
+    qemu-i386*)
         if [ ! -e "/proc/sys/fs/binfmt_misc/qemu-i386" ]; then
             echo ":qemu-i386:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x03\x00:\xff\xff\xff\xff\xff\xfe\xfe\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:${target_path}:" > "/proc/sys/fs/binfmt_misc/register"
             is_ok "fail" "done"
@@ -38,9 +38,17 @@ do_start()
             msg "skip"
         fi
     ;;
-    x86*)
+    qemu-arm*)
         if [ ! -e "/proc/sys/fs/binfmt_misc/qemu-arm" ]; then
             echo ":qemu-arm:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:${target_path}:" > "/proc/sys/fs/binfmt_misc/register"
+            is_ok "fail" "done"
+        else
+            msg "skip"
+        fi
+    ;;
+    qemu-mipsel*)
+        if [ ! -e "/proc/sys/fs/binfmt_misc/qemu-mipsel" ]; then
+            echo ":qemu-mipsel:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x08\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:${target_path}:" > "/proc/sys/fs/binfmt_misc/register"
             is_ok "fail" "done"
         else
             msg "skip"
@@ -60,13 +68,13 @@ do_stop()
     multiarch_support || return 0
 
     msg -n ":: Stopping ${COMPONENT} ... "
-    local target_path="/usr/local/bin/${EMULATOR}"
+    local target_path="/usr/bin/${EMULATOR}"
     if is_mounted "${CHROOT_DIR}${target_path}"
     then
         umount "${CHROOT_DIR}${target_path}"
     fi
-    case "$(get_platform)" in
-    arm*)
+    case "${EMULATOR}" in
+    qemu-i386*)
         if [ -e "/proc/sys/fs/binfmt_misc/qemu-i386" ]; then
             echo -1 > /proc/sys/fs/binfmt_misc/qemu-i386
             is_ok "fail" "done"
@@ -74,9 +82,17 @@ do_stop()
             msg "skip"
         fi
     ;;
-    x86*)
+    qemu-arm*)
         if [ -e "/proc/sys/fs/binfmt_misc/qemu-arm" ]; then
             echo -1 > /proc/sys/fs/binfmt_misc/qemu-arm
+            is_ok "fail" "done"
+        else
+            msg "skip"
+        fi
+    ;;
+    qemu-mipsel*)
+        if [ -e "/proc/sys/fs/binfmt_misc/qemu-mipsel" ]; then
+            echo -1 > /proc/sys/fs/binfmt_misc/qemu-mipsel
             is_ok "fail" "done"
         else
             msg "skip"
