@@ -42,7 +42,7 @@ do_configure()
 do_start()
 {
     msg -n ":: Starting ${COMPONENT} ... "
-    is_stopped
+    is_stopped /run/dbus/pid /run/dbus/messagebus.pid /var/run/messagebus.pid
     is_ok "skip" || return 0
     remove_files /run/dbus/pid /run/dbus/messagebus.pid /var/run/messagebus.pid
     chroot_exec -u root dbus-daemon --system --fork
