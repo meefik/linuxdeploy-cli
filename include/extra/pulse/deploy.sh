@@ -5,6 +5,34 @@
 [ -n "${PULSE_HOST}" ] || PULSE_HOST="127.0.0.1"
 [ -n "${PULSE_PORT}" ] || PULSE_PORT="4712"
 
+do_install()
+{
+    msg ":: Installing ${COMPONENT} ... "
+    local packages=""
+    case "${DISTRIB}:${ARCH}:${SUITE}" in
+    debian:*|ubuntu:*|kalilinux:*)
+        packages="libasound2-plugins"
+        apt_install ${packages}
+    ;;
+    archlinux:*)
+        packages="pulseaudio-alsa"
+        pacman_install ${packages}
+    ;;
+    fedora:*)
+        packages="alsa-plugins-pulseaudio"
+        dnf_install ${packages}
+    ;;
+    centos:*)
+        packages="alsa-plugins-pulseaudio"
+        yum_install ${packages}
+    ;;
+    gentoo:*)
+        packages="media-plugins/alsa-plugins"
+        emerge_install ${packages}
+    ;;
+    esac
+}
+
 do_configure()
 {
     msg ":: Configuring ${COMPONENT} ... "
