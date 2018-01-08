@@ -37,6 +37,14 @@ do_install()
     esac
 }
 
+do_configure()
+{
+    msg ":: Configuring ${COMPONENT} ... "
+    sed -i -E 's/#?PermitRootLogin .*/PermitRootLogin yes/g' "${CHROOT_DIR}/etc/ssh/sshd_config"
+    sed -i -E 's/#?AcceptEnv .*/AcceptEnv LANG/g' "${CHROOT_DIR}/etc/ssh/sshd_config"
+    return 0
+}
+
 do_start()
 {
     msg -n ":: Starting ${COMPONENT} ... "
