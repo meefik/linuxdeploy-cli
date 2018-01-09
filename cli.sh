@@ -618,13 +618,16 @@ mount_part()
     selinux)
         selinux_support || return 0
         msg -n "/sys/fs/selinux ... "
+        if ! is_mounted "/sys/fs/selinux" ; then
+            mount -t selinuxfs selinuxfs /sys/fs/selinux
+        fi
         local target="${CHROOT_DIR}/sys/fs/selinux"
         if ! is_mounted "${target}" ; then
             if [ -e "/sys/fs/selinux/enforce" ]; then
                 cat /sys/fs/selinux/enforce > "${TEMP_DIR}/selinux_state"
                 echo 0 > /sys/fs/selinux/enforce
             fi
-            mount -t selinuxfs selinuxfs "${target}" &&
+            mount -o bind /sys/fs/selinux "${target}" &&
             mount -o remount,ro,bind "${target}"
             is_ok "fail" "done"
         else
@@ -636,28 +639,7 @@ mount_part()
         local target="${CHROOT_DIR}/dev"
         if ! is_mounted "${target}" ; then
             [ -d "${target}" ] || mkdir -p "${target}"
-            [ -e "/dev/fd" ] || ln -s /proc/self/fd /dev/
-            [ -e "/dev/stdin" ] || ln -s /proc/self/fd/0 /dev/stdin
-            [ -e "/dev/stdout" ] || ln -s /proc/self/fd/1 /dev/stdout
-            [ -e "/dev/stderr" ] || ln -s /proc/self/fd/2 /dev/stderr
             mount -o bind /dev "${target}"
-            is_ok "fail" "done"
-        else
-            msg "skip"
-        fi
-    ;;
-    tty)
-        [ ! -e "/dev/tty0" ] || return 0
-        msg -n "/dev/tty ... "
-        ln -s /dev/null /dev/tty0
-        is_ok "fail" "done"
-    ;;
-    pts)
-        msg -n "/dev/pts ... "
-        local target="${CHROOT_DIR}/dev/pts"
-        if ! is_mounted "${target}" ; then
-            [ -d "${target}" ] || mkdir -p "${target}"
-            mount -o "mode=0620,gid=5" -t devpts devpts "${target}"
             is_ok "fail" "done"
         else
             msg "skip"
@@ -665,35 +647,64 @@ mount_part()
     ;;
     shm)
         msg -n "/dev/shm ... "
-        local target="/dev/shm"
-        if [ -L "${target}" ]; then
-            target=$(readlink "${target}")
+        if ! is_mounted "/dev/shm" ; then
+            [ -d "/dev/shm" ] || mkdir -p /dev/shm
+            mount -o rw,nosuid,nodev,mode=1777 -t tmpfs tmpfs /dev/shm
         fi
-        target="${CHROOT_DIR}/${target}"
+        local target="${CHROOT_DIR}/dev/shm"
         if ! is_mounted "${target}" ; then
-            [ -d "${target}" ] || mkdir -p "${target}"
-            mount -t tmpfs tmpfs "${target}"
+            mount -o bind /dev/shm "${target}"
             is_ok "fail" "done"
         else
             msg "skip"
         fi
     ;;
+    pts)
+        msg -n "/dev/pts ... "
+        if ! is_mounted "/dev/pts" ; then
+            [ -d "/dev/pts" ] || mkdir -p /dev/pts
+            mount -o rw,nosuid,noexec,gid=5,mode=620,ptmxmode=000 -t devpts devpts /dev/pts
+        fi
+        local target="${CHROOT_DIR}/dev/pts"
+        if ! is_mounted "${target}" ; then
+            mount -o bind /dev/pts "${target}"
+            is_ok "fail" "done"
+        else
+            msg "skip"
+        fi
+    ;;
+    fd)
+        if [ ! -e "/dev/fd" -o ! -e "/dev/stdin" -o ! -e "/dev/stdout" -o ! -e "/dev/stderr" ]; then
+            msg -n "/dev/fd ... "
+            [ -e "/dev/fd" ] || ln -s /proc/self/fd /dev/
+            [ -e "/dev/stdin" ] || ln -s /proc/self/fd/0 /dev/stdin
+            [ -e "/dev/stdout" ] || ln -s /proc/self/fd/1 /dev/stdout
+            [ -e "/dev/stderr" ] || ln -s /proc/self/fd/2 /dev/stderr
+            is_ok "fail" "done"
+        fi
+    ;;
+    tty)
+        if [ ! -e "/dev/tty0" ]; then
+            msg -n "/dev/tty ... "
+            ln -s /dev/null /dev/tty0
+            is_ok "fail" "done"
+        fi
+    ;;
     tun)
-        [ ! -e "/dev/net/tun" ] || return 0
-        msg -n "/dev/net/tun ... "
-        [ -d "/dev/net" ] || mkdir -p /dev/net
-        mknod /dev/net/tun c 10 200
-        is_ok "fail" "done"
+        if [ ! -e "/dev/net/tun" ]; then
+            msg -n "/dev/net/tun ... "
+            [ -d "/dev/net" ] || mkdir -p /dev/net
+            mknod /dev/net/tun c 10 200
+            is_ok "fail" "done"
+        fi
     ;;
     binfmt_misc)
         multiarch_support || return 0
         local binfmt_dir="/proc/sys/fs/binfmt_misc"
-        msg -n "${binfmt_dir} ... "
-        if [ ! -e "${binfmt_dir}/register" ]; then
+        if ! is_mounted "${binfmt_dir}" ; then
+            msg -n "${binfmt_dir} ... "
             mount -t binfmt_misc binfmt_misc "${binfmt_dir}"
             is_ok "fail" "done"
-        else
-            msg "skip"
         fi
     ;;
     esac
@@ -706,7 +717,7 @@ container_mount()
     [ "${METHOD}" = "chroot" ] || return 0
 
     if [ $# -eq 0 ]; then
-        container_mount root proc sys selinux dev tty pts shm tun binfmt_misc
+        container_mount root proc sys selinux dev shm pts fd tty tun binfmt_misc
         return $?
     fi
 
@@ -716,7 +727,7 @@ container_mount()
     fs_check
     is_ok "skip" "done"
 
-    msg "Mounting partitions: "
+    msg "Mounting the container: "
     local item
     for item in $*
     do
@@ -752,9 +763,6 @@ container_umount()
         do
             local part_name=$(echo ${part} | sed "s|^${CHROOT_DIR%/}/*|/|g")
             msg -n "${part_name} ... "
-            if [ -z "${part_name##*selinux*}" -a -e "/sys/fs/selinux/enforce" -a -e "${TEMP_DIR}/selinux_state" ]; then
-                cat "${TEMP_DIR}/selinux_state" > /sys/fs/selinux/enforce
-            fi
             for i in 1 2 3
             do
                 umount ${part} && break
@@ -766,12 +774,19 @@ container_umount()
     done
     [ "${is_mnt}" -eq 1 ]; is_ok " ...nothing mounted"
 
-    msg -n "Disassociating loop device ... "
+    if [ -e "/sys/fs/selinux/enforce" -a -e "${TEMP_DIR}/selinux_state" ]; then
+        msg -n "Restoring SELinux state ... "
+        cat "${TEMP_DIR}/selinux_state" > /sys/fs/selinux/enforce &&
+        rm "${TEMP_DIR}/selinux_state"
+        is_ok "fail" "done"
+    fi
+
     local loop=$(losetup -a | grep "${TARGET_PATH%/}" | awk -F: '{print $1}')
     if [ -n "${loop}" ]; then
+        msg -n "Disassociating loop device ... "
         losetup -d "${loop}"
+        is_ok "fail" "done"
     fi
-    is_ok "fail" "done"
 
     return 0
 }
