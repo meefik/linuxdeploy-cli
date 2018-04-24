@@ -9,6 +9,7 @@ do
     let SIZE=SIZE/1024/1024
     echo "PROFILE=${PROFILE}"
     echo "DESC=${DESC}"
+    echo "TYPE=${DISTRIB}"
     echo "SIZE=${SIZE}"
     echo
 done | gzip >index.gz

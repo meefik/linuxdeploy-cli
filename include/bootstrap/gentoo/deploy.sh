@@ -59,8 +59,8 @@ do_install()
     x86*) local repo_url="${SOURCE_PATH%/}/x86/autobuilds" ;;
     arm*) local repo_url="${SOURCE_PATH%/}/arm/autobuilds" ;;
     esac
-    local stage3="${CHROOT_DIR}/tmp/latest-stage3.tar.bz2"
     local archive=$(wget -q -O - "${repo_url}/latest-stage3-${ARCH}.txt" | grep -v '^#' | awk '{print $1}')
+    local stage3="${CHROOT_DIR}/tmp/${archive#**/}"
     test "${archive}"
     is_ok "fail" "done" || return 1
 
@@ -75,7 +75,12 @@ do_install()
 
     msg -n "Unpacking stage3 archive ... "
     (set -e
-        tar xjf "${stage3}" -C "${CHROOT_DIR}" --exclude='./dev' --exclude='./sys' --exclude='./proc'
+        case "${stage3}" in
+        *gz) tar xzf "${stage3}" -C "${CHROOT_DIR}" --exclude='./dev' --exclude='./sys' --exclude='./proc';;
+        *bz2) tar xjf "${stage3}" -C "${CHROOT_DIR}" --exclude='./dev' --exclude='./sys' --exclude='./proc';;
+        *xz) tar xJf "${stage3}" -C "${CHROOT_DIR}" --exclude='./dev' --exclude='./sys' --exclude='./proc';;
+        *) exit 1;;
+        esac
         rm -f "${stage3}"
     exit 0)
     is_ok "fail" "done" || return 1
