@@ -6,7 +6,7 @@
 #
 ################################################################################
 
-VERSION="2.2.4"
+VERSION="2.2.5"
 
 ################################################################################
 # Common
@@ -94,12 +94,12 @@ multiarch_support()
     fi
 }
 
-selinux_support()
+selinux_inactive()
 {
-    if [ -d "/sys/fs/selinux" ]; then
-        return 0
+    if [ -e "/sys/fs/selinux/enforce" ]; then
+        return $(cat /sys/fs/selinux/enforce)
     else
-        return 1
+        return 0
     fi
 }
 
@@ -615,25 +615,6 @@ mount_part()
             msg "skip"
         fi
     ;;
-    selinux)
-        selinux_support || return 0
-        msg -n "/sys/fs/selinux ... "
-        if ! is_mounted "/sys/fs/selinux" ; then
-            mount -t selinuxfs selinuxfs /sys/fs/selinux
-        fi
-        local target="${CHROOT_DIR}/sys/fs/selinux"
-        if ! is_mounted "${target}" ; then
-            if [ -e "/sys/fs/selinux/enforce" ]; then
-                cat /sys/fs/selinux/enforce > "${TEMP_DIR}/selinux_state"
-                echo 0 > /sys/fs/selinux/enforce
-            fi
-            mount -o bind /sys/fs/selinux "${target}" &&
-            mount -o remount,ro,bind "${target}"
-            is_ok "fail" "done"
-        else
-            msg "skip"
-        fi
-    ;;
     dev)
         msg -n "/dev ... "
         local target="${CHROOT_DIR}/dev"
@@ -717,7 +698,7 @@ container_mount()
     [ "${METHOD}" = "chroot" ] || return 0
 
     if [ $# -eq 0 ]; then
-        container_mount root proc sys selinux dev shm pts fd tty tun binfmt_misc
+        container_mount root proc sys dev shm pts fd tty tun binfmt_misc
         return $?
     fi
 
@@ -773,13 +754,6 @@ container_umount()
         done
     done
     [ "${is_mnt}" -eq 1 ]; is_ok " ...nothing mounted"
-
-    if [ -e "/sys/fs/selinux/enforce" -a -e "${TEMP_DIR}/selinux_state" ]; then
-        msg -n "Restoring SELinux state ... "
-        cat "${TEMP_DIR}/selinux_state" > /sys/fs/selinux/enforce &&
-        rm "${TEMP_DIR}/selinux_state"
-        is_ok "fail" "done"
-    fi
 
     local loop=$(losetup -a | grep "${TARGET_PATH%/}" | awk -F: '{print $1}')
     if [ -n "${loop}" ]; then
@@ -952,7 +926,7 @@ container_status()
     msg "${swap_free}/${swap_total} MB"
 
     msg -n "SELinux: "
-    selinux_support && msg "yes" || msg "no"
+    selinux_inactive && msg "inactive" || msg "active"
 
     msg -n "Loop devices: "
     loop_support && msg "yes" || msg "no"
