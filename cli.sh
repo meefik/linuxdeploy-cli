@@ -615,6 +615,17 @@ mount_part()
             msg "skip"
         fi
     ;;
+    debugfs)
+        msg -n "/debugfs ... "
+        local target="${CHROOT_DIR}/sys/kernel/debug"
+        if ! is_mounted "${target}" ; then
+            [ -d "${target}" ] || mkdir -p "${target}"
+            mount -t debugfs none "${target}"
+            is_ok "fail" "done"
+        else
+            msg "skip"
+        fi
+    ;;
     dev)
         msg -n "/dev ... "
         local target="${CHROOT_DIR}/dev"
@@ -698,7 +709,7 @@ container_mount()
     [ "${METHOD}" = "chroot" ] || return 0
 
     if [ $# -eq 0 ]; then
-        container_mount root proc sys dev shm pts fd tty tun binfmt_misc
+        container_mount root proc sys debugfs dev shm pts fd tty tun binfmt_misc
         return $?
     fi
 
