@@ -2,7 +2,7 @@
 # Linux Deploy Component
 # (c) Anton Skshidlevsky <meefik@gmail.com>, GPLv3
 
-[ -n "${SUITE}" ] || SUITE="25"
+[ -n "${SUITE}" ] || SUITE="28"
 
 if [ -z "${ARCH}" ]
 then
@@ -31,7 +31,7 @@ yum_repository()
 {
     find "${CHROOT_DIR}/etc/yum.repos.d/" -name '*.repo' | while read f; do sed -i 's/^enabled=.*/enabled=0/g' "${f}"; done
     local repo_file="${CHROOT_DIR}/etc/yum.repos.d/fedora-${SUITE}-${ARCH}.repo"
-    if [ "${ARCH}" = "aarch64" ]
+    if [ "${ARCH}" = "i386" ]
     then local repo_url="${SOURCE_PATH%/}/fedora-secondary/releases/${SUITE}/Everything/${ARCH}/os"
     else local repo_url="${SOURCE_PATH%/}/fedora/linux/releases/${SUITE}/Everything/${ARCH}/os"
     fi
@@ -51,9 +51,9 @@ do_install()
 
     msg ":: Installing ${COMPONENT} ... "
 
-    local basic_packages="filesystem setup audit-libs basesystem bash bash-completion bzip2-libs ca-certificates chkconfig coreutils cpio cracklib cracklib-dicts crypto-policies cryptsetup-libs curl cyrus-sasl-lib dbus dbus-libs deltarpm device-mapper-libs dnf dnf-conf elfutils-libelf elfutils-libs expat fedora-release fedora-repos file-libs gawk gdbm glib2 glibc glibc-common glibc-locale-source gmp gnupg2 gnutls gpgme grep gzip hawkey info iptables-libs keyutils-libs kmod-libs krb5-libs libacl libarchive libassuan libattr libblkid libcap libcap-ng libcom_err libcomps libcrypt libcurl libdb libdb-utils libdnf libffi libgcc libgcrypt libgpg-error libidn libidn2 libmetalink libmount libnghttp2 libpcap libpsl libpwquality librepo libreport-filesystem libseccomp libselinux libselinux-utils libsemanage libsepol libsigsegv libsmartcols libsolv libssh2 libtasn1 libunistring libutempter libuuid libverto libxml2 libzstd lua-libs lz4 lz4-libs lzo mpfr ncurses ncurses-base ncurses-libs nettle nspr nss nss-softokn nss-softokn-freebl nss-sysinit nss-tools nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pcre2 popt python3 python3-dnf python3-gpg python3-hawkey python3-iniparse python3-libcomps python3-librepo python3-libs python3-pip python3-pygpgme python3-rpm python3-setuptools python3-six qrencode-libs readline rpm rpm-build-libs rpm-libs rpm-plugin-selinux rpm-plugin-systemd-inhibit sed selinux-policy shadow-utils sqlite-libs sudo system-python system-python-libs systemd systemd-libs tzdata ustr util-linux vim-minimal which xz-libs zlib"
+    local basic_packages="audit-libs basesystem bash bash-completion bzip2-libs ca-certificates chkconfig coreutils cpio cracklib crypto-policies cryptsetup-libs curl cyrus-sasl-lib dbus dbus-libs device-mapper-libs dnf dnf-conf dnf-plugins-core dnf-yum elfutils-libelf elfutils-libs expat fedora-gpg-keys fedora-release fedora-repos file-libs filesystem gawk gdbm glib2 glibc glibc-common gmp gnupg2 gnutls gobject-introspection gpgme grep gzip info iptables-libs json-c keyutils-libs kmod-libs krb5-libs libacl libarchive libargon2 libassuan libattr libblkid libcap libcap-ng libcom_err libcomps libcurl libdb libdb-utils libdnf libffi libgcc libgcrypt libgpg-error libidn2 libmetalink libmodulemd libmount libnghttp2 libnsl2 libpcap libpsl libpwquality librepo libreport-filesystem libseccomp libselinux libsemanage libsepol libsigsegv libsmartcols libsolv libssh libtasn1 libtirpc libunistring libutempter libuuid libverto libxcrypt libxml2 libyaml libzstd lua-libs lz4-libs mpfr ncurses ncurses-base ncurses-libs nettle nspr nss nss-softokn nss-softokn-freebl nss-sysinit nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pcre2 popt python3 python3-dnf python3-dnf-plugins-core python3-gobject-base python3-gpg python3-hawkey python3-iniparse python3-libcomps python3-librepo python3-libs python3-pip python3-rpm python3-setuptools python3-six python3-smartcols qrencode-libs readline rootfiles rpm rpm-build-libs rpm-libs rpm-plugin-selinux sed setup shadow-utils sqlite-libs sudo systemd systemd-libs tzdata util-linux vim-minimal which xz-libs zlib"
 
-    if [ "${ARCH}" = "aarch64" ]
+    if [ "${ARCH}" = "i386" ]
     then local repo_url="${SOURCE_PATH%/}/fedora-secondary/releases/${SUITE}/Everything/${ARCH}/os"
     else local repo_url="${SOURCE_PATH%/}/fedora/linux/releases/${SUITE}/Everything/${ARCH}/os"
     fi
@@ -129,7 +129,7 @@ cat <<EOF
      Architecture of Linux distribution, supported "armhfp", "aarch64", "i386" and "x86_64".
 
    --suite="${SUITE}"
-     Version of Linux distribution, supported versions "25", "26" and "27".
+     Version of Linux distribution, supported version "28".
 
    --source-path="${SOURCE_PATH}"
      Installation source, can specify address of the repository or path to the rootfs archive.
