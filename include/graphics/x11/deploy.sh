@@ -9,8 +9,8 @@ do_start()
     msg -n ":: Starting ${COMPONENT} ... "
     is_stopped /tmp/xsession.pid
     is_ok "skip" || return 0
-    local cmd="export DISPLAY=${X11_HOST}:${X11_DISPLAY}; ~/.xinitrc"
-    chroot_exec -u ${USER_NAME} ${cmd} &
+    local cmd="export DISPLAY=${X11_HOST}:${X11_DISPLAY}; ~/.xinitrc &"
+    chroot_exec -u ${USER_NAME} ${cmd}
     is_ok "fail" "done"
     return 0
 }
