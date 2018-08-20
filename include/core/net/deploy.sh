@@ -27,6 +27,7 @@ do_configure()
     do
         echo "nameserver ${dns}" >> "${CHROOT_DIR}/etc/resolv.conf"
     done
+    sed -i 's/systemd//g' "${CHROOT_DIR}/etc/nsswitch.conf"
     return 0
 }
 
