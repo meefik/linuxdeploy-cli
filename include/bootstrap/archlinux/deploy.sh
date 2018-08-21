@@ -115,7 +115,8 @@ do_install()
     is_ok "fail" "done"
 
     msg "Installing base packages: "
-    extra_packages=$(chroot_exec -u root /usr/bin/pacman --noconfirm -Sg base | awk '{print $2}' | grep -v -e 'linux' -e 'kernel' | xargs)
+    chroot_exec -u root pacman -Syq
+    extra_packages=$(chroot_exec -u root pacman -Sqg base | grep -v -e 'linux' -e 'kernel' | xargs)
     pacman_install ${basic_packages} ${extra_packages}
     is_ok || return 1
 
