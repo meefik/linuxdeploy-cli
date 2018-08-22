@@ -84,8 +84,7 @@ do_install()
     for package in ${basic_packages}; do
         msg -n "${package} ... "
         pkg_url=$(grep -e "^.*/${package}-[0-9r][0-9\.\-].*rpm$" "${pkg_list}" | grep -m1 ${pkg_arch})
-        test "${pkg_url}"
-        is_ok "skip" || continue
+        test "${pkg_url}"; is_ok "fail" || return 1
         pkg_file="${pkg_url##*/}"
         # download
         for i in 1 2 3
