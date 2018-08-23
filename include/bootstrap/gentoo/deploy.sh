@@ -47,10 +47,7 @@ do_install()
     msg ":: Installing ${COMPONENT} ... "
 
     msg -n "Preparing for deployment ... "
-    (set -e
-        cd "${CHROOT_DIR}"
-        mkdir tmp; chmod 1777 tmp
-    exit 0)
+    mkdir "${CHROOT_DIR}/tmp" && chmod 1777 "${CHROOT_DIR}/tmp"
     is_ok "fail" "done" || return 1
 
     msg -n "Getting repository path ... "

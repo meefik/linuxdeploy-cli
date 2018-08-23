@@ -55,7 +55,7 @@ do_install()
 
     msg ":: Installing ${COMPONENT} ... "
 
-    local basic_packages="filesystem acl archlinux-keyring attr bash bzip2 ca-certificates coreutils cracklib curl db e2fsprogs expat findutils gawk gcc-libs gdbm glibc gmp gnupg gpgme grep icu keyutils krb5 libarchive libassuan libcap libgcrypt libgpg-error libgssglue libidn2 libksba libldap libnghttp2 libpsl libsasl libssh2 libtirpc libunistring linux-api-headers lz4 lzo ncurses nettle openssl pacman pacman-mirrorlist pam pambase perl pinentry pth readline run-parts sed shadow sudo tzdata util-linux xz which zlib"
+    local base_packages="filesystem acl archlinux-keyring attr bash bzip2 ca-certificates ca-certificates-mozilla ca-certificates-utils coreutils cracklib curl db e2fsprogs expat findutils gcc-libs gdbm glib2 glibc gmp gnupg gnutls gpgme iana-etc keyutils krb5 libarchive libassuan libcap libffi libgcrypt libgpg-error libidn libidn2 libksba libldap libnghttp2 libpsl libsasl libsecret libssh2 libsystemd libtasn1 libtirpc libunistring libutil-linux linux-api-headers lz4 ncurses nettle npth openssl p11-kit pacman pacman-mirrorlist pam pambase pcre perl pinentry readline shadow sqlite sudo tzdata util-linux which xz zlib"
 
     case "$(get_platform ${ARCH})" in
     x86_64) local repo_url="${SOURCE_PATH%/}/core/os/${ARCH}" ;;
@@ -63,23 +63,11 @@ do_install()
     *) return 1 ;;
     esac
 
-    local cache_dir="${CHROOT_DIR}/var/cache/pacman/pkg"
-
     msg "URL: ${repo_url}"
 
     msg -n "Preparing for deployment ... "
-    (set -e
-        cd "${CHROOT_DIR}"
-        mkdir etc
-        echo "root:x:0:0:root:/root:/bin/bash" > etc/passwd
-        echo "root:x:0:" > etc/group
-        touch etc/fstab
-        mkdir tmp; chmod 1777 tmp
-        mkdir -p var/tmp; chmod 1777 var/tmp
-        mkdir -p var/games; chmod 775 var/games
-        mkdir -p var/spool/mail; chmod 1777 var/spool/mail
-        mkdir -p "${cache_dir}"
-    exit 0)
+    local cache_dir="${CHROOT_DIR}/var/cache/pacman/pkg"
+    mkdir -p "${cache_dir}"
     is_ok "fail" "done" || return 1
 
     msg -n "Retrieving packages list ... "
@@ -87,7 +75,8 @@ do_install()
     is_ok "fail" "done" || return 1
 
     msg "Retrieving base packages: "
-    for package in ${basic_packages}; do
+    for package in ${base_packages}
+    do
         msg -n "${package} ... "
         local pkg_file=$(echo "${pkg_list}" | grep -m1 -e "^${package}-[[:digit:]].*\.xz$" -e "^${package}-[[:digit:]].*\.gz$")
         test "${pkg_file}"; is_ok "fail" || return 1
@@ -115,13 +104,11 @@ do_install()
     is_ok "fail" "done"
 
     msg "Installing base packages: "
-    chroot_exec -u root pacman -Syq
-    extra_packages=$(chroot_exec -u root pacman -Sqg base | grep -v -e 'linux' -e 'kernel' | xargs)
-    pacman_install ${basic_packages} ${extra_packages}
+    pacman_install base ${base_packages}
     is_ok || return 1
 
     msg -n "Clearing cache ... "
-    rm -f "${cache_dir}"/* $(find "${CHROOT_DIR}/etc" -type f -name "*.pacorig")
+    rm -f "${cache_dir}"/* $(find "${CHROOT_DIR}/etc" -type f -name "*.pacnew")
     is_ok "skip" "done"
 
     return 0

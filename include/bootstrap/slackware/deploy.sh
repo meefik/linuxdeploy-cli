@@ -72,14 +72,14 @@ do_install()
     is_ok "fail" "done" || return 1
 
     msg -n "Retrieving packages list ... "
-    local basic_packages=$(wget -q -O - "${repo_url}/a/tagfile" | grep -v -e 'kernel' -e 'efibootmgr' -e 'lilo' -e 'grub' -e 'devs' | awk -F: '{if ($1!="") print "a/"$1}')
+    local base_packages=$(wget -q -O - "${repo_url}/a/tagfile" | grep -v -e 'kernel' -e 'efibootmgr' -e 'lilo' -e 'grub' -e 'devs' | awk -F: '{if ($1!="") print "a/"$1}')
     local pkg_list="${cache_dir}/packages.list"
     wget -q -O - "${repo_url}/FILE_LIST" | grep -o -e '/.*\.\tgz$' -e '/.*\.\txz$' > "${pkg_list}"
     is_ok "fail" "done" || return 1
 
     msg "Retrieving base packages: "
     local package i pkg_url pkg_file
-    for package in ${basic_packages} ${extra_packages}
+    for package in ${base_packages} ${extra_packages}
     do
         msg -n "${package} ... "
         pkg_url=$(grep -m1 -e "/${package}\-" "${pkg_list}")

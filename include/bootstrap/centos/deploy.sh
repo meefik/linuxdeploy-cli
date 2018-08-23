@@ -65,7 +65,7 @@ do_install()
 
     msg ":: Installing ${COMPONENT} ... "
 
-    local basic_packages="audit-libs basesystem bash bzip2-libs ca-certificates chkconfig coreutils cpio cracklib cracklib-dicts cryptsetup-libs curl cyrus-sasl-lib dbus dbus-libs diffutils elfutils-libelf elfutils-libs expat file-libs filesystem gawk gdbm glib2 glibc glibc-common gmp gnupg2 gpgme grep gzip info keyutils-libs kmod kmod-libs krb5-libs libacl libassuan libattr libblkid libcap libcap-ng libcom_err libcurl libdb libdb-utils libffi libgcc libgcrypt libgpg-error libidn libmount libpwquality libselinux libsemanage libsepol libssh2 libstdc++ libtasn1 libuuid libverto libxml2 lua lz4 ncurses ncurses-base ncurses-libs nspr nss nss-pem nss-softokn nss-softokn-freebl nss-sysinit nss-tools nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pinentry pkgconfig popt pth pygpgme pyliblzma python python-iniparse python-libs python-pycurl python-urlgrabber pyxattr qrencode-libs readline rootfiles rpm rpm-build-libs rpm-libs rpm-python sed setup shadow-utils shared-mime-info sqlite sudo systemd systemd-libs tzdata ustr util-linux vim-minimal which xz-libs yum yum-metadata-parser yum-plugin-fastestmirror yum-utils zlib"
+    local base_packages="audit-libs basesystem bash bzip2-libs ca-certificates chkconfig coreutils cpio cracklib cracklib-dicts cryptsetup-libs curl cyrus-sasl-lib dbus dbus-libs diffutils elfutils-libelf elfutils-libs expat file-libs filesystem gawk gdbm glib2 glibc glibc-common gmp gnupg2 gpgme grep gzip info keyutils-libs kmod kmod-libs krb5-libs libacl libassuan libattr libblkid libcap libcap-ng libcom_err libcurl libdb libdb-utils libffi libgcc libgcrypt libgpg-error libidn libmount libpwquality libselinux libsemanage libsepol libssh2 libstdc++ libtasn1 libuuid libverto libxml2 lua lz4 ncurses ncurses-base ncurses-libs nspr nss nss-pem nss-softokn nss-softokn-freebl nss-sysinit nss-tools nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pinentry pkgconfig popt pth pygpgme pyliblzma python python-iniparse python-libs python-pycurl python-urlgrabber pyxattr qrencode-libs readline rootfiles rpm rpm-build-libs rpm-libs rpm-python sed setup shadow-utils shared-mime-info sqlite sudo systemd systemd-libs tzdata ustr util-linux vim-minimal which xz-libs yum yum-metadata-parser yum-plugin-fastestmirror yum-utils zlib"
     local repo_url="${SOURCE_PATH%/}/${SUITE}/os/${ARCH}"
 
     msg "URL: ${repo_url}"
@@ -91,7 +91,8 @@ do_install()
     armhfp) pkg_arch="-e armv7hl -e noarch" ;;
     aarch64) pkg_arch="-e aarch64 -e noarch" ;;
     esac
-    for package in ${basic_packages}; do
+    for package in ${base_packages}
+    do
         msg -n "${package} ... "
         pkg_url=$(grep -e "^.*/${package}-[0-9][0-9\.\-].*rpm$" "${pkg_list}" | grep -m1 ${pkg_arch})
         test "${pkg_url}"; is_ok "fail" || return 1
