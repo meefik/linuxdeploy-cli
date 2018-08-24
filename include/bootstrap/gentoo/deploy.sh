@@ -12,7 +12,7 @@ then
     esac
 fi
 
-[ -n "${SOURCE_PATH}" ] || SOURCE_PATH="http://mirror.yandex.ru/gentoo-distfiles/releases/"
+[ -n "${SOURCE_PATH}" ] || SOURCE_PATH="http://distfiles.gentoo.org/releases/"
 
 emerge_install()
 {
