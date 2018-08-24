@@ -31,5 +31,12 @@ do_configure()
     msg ":: Configuring ${COMPONENT} ... "
     local xsession="${CHROOT_DIR}$(user_home ${USER_NAME})/.xsession"
     echo 'exec startlxde' > "${xsession}"
+    # fix error "No session for pid"
+    if [ -e "${CHROOT_DIR}/etc/xdg/autostart/lxpolkit.desktop" ]; then
+        rm "${CHROOT_DIR}/etc/xdg/autostart/lxpolkit.desktop"
+    fi
+    if [ -e "${CHROOT_DIR}/usr/bin/lxpolkit" ]; then
+        mv "${CHROOT_DIR}/usr/bin/lxpolkit" "${CHROOT_DIR}/usr/bin/lxpolkit.bak"
+    fi
     return 0
 }
