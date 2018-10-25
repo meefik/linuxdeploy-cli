@@ -42,7 +42,7 @@ do_configure()
         for username in ${user_names}
         do
             chroot_exec -u root groupadd -f ${username}
-            chroot_exec -u root useradd -g ${username} -s /bin/false ${username}
+            chroot_exec -u root useradd -g ${username} -s /bin/false -d / ${username}
         done
 
         chroot_exec -u root groupadd -f network
