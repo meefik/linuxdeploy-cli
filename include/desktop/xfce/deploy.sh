@@ -30,6 +30,12 @@ do_configure()
 {
     msg ":: Configuring ${COMPONENT} ... "
     local xsession="${CHROOT_DIR}$(user_home ${USER_NAME})/.xsession"
-    echo 'exec dbus-run-session xfce4-session' > "${xsession}"
+    local command='exec dbus-run-session xfce4-session'
+    case "${DISTRIB}:${ARCH}:${SUITE}" in
+    archlinux:*)
+        command='exec dbus-launch xfce4-session'
+    ;;
+    esac
+    echo ${command} > "${xsession}"
     return 0
 }

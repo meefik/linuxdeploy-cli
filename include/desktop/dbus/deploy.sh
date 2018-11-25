@@ -36,6 +36,18 @@ do_configure()
     make_dirs /run/dbus /var/run/dbus
     chmod 644 "${CHROOT_DIR}/etc/machine-id"
     chroot_exec -u root dbus-uuidgen > "${CHROOT_DIR}/etc/machine-id"
+    case "${DISTRIB}:${ARCH}:${SUITE}" in
+    archlinux:*)
+        local user_names="systemd-timesync systemd-network colord systemd-resolve polkitd avahi dbus"
+        for username in ${user_names}
+        do
+            chroot_exec -u root groupadd -f ${username}
+            chroot_exec -u root useradd -g ${username} -s /bin/false -d / ${username}
+        done
+
+        chroot_exec -u root groupadd -f network
+    ;;
+    esac
     return 0
 }
 
