@@ -32,6 +32,6 @@ do_configure()
     local xsession="${CHROOT_DIR}$(user_home ${USER_NAME})/.xsession"
     echo 'XKL_XMODMAP_DISABLE=1' > "${xsession}"
     echo 'export XKL_XMODMAP_DISABLE' >> "${xsession}"
-    echo 'exec dbus-run-session mate-session' >> "${xsession}"
+    echo 'exec dbus-launch --exit-with-session mate-session' >> "${xsession}"
     return 0
 }
