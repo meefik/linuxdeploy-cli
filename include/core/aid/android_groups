@@ -85,8 +85,6 @@ aid_net_bw_acct:3007
 aid_readproc:3009
 aid_wakelock:3010
 aid_uhid:3011
-aid_oem_reserved_2_start:5000
-aid_oem_reserved_2_end:5999
 aid_everybody:9997
 aid_misc:9998
 aid_nobody:9999
