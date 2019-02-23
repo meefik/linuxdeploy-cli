@@ -55,7 +55,7 @@ do_install()
 
     msg ":: Installing ${COMPONENT} ... "
 
-    local base_packages="filesystem acl archlinux-keyring attr bash bzip2 ca-certificates ca-certificates-mozilla ca-certificates-utils coreutils cracklib curl db e2fsprogs expat findutils gcc-libs gdbm glib2 glibc gmp gnupg gnutls gpgme iana-etc keyutils krb5 libarchive libassuan libcap libffi libgcrypt libgpg-error libidn libidn2 libksba libldap libnghttp2 libpsl libsasl libsecret libssh2 libsystemd libtasn1 libtirpc libunistring libutil-linux linux-api-headers lz4 ncurses nettle npth openssl p11-kit pacman pacman-mirrorlist pam pambase pcre perl pinentry readline shadow sqlite sudo tzdata util-linux which xz zlib zstd"
+    local base_packages="filesystem acl archlinux-keyring attr bash bzip2 ca-certificates ca-certificates-mozilla ca-certificates-utils coreutils cracklib curl db e2fsprogs expat findutils gcc-libs gdbm glib2 glibc gmp gnupg gnutls gpgme iana-etc keyutils krb5 libarchive libassuan libcap libffi libgcrypt libgpg-error libidn libidn2 libksba libldap libnghttp2 libpsl libsasl libsecret libssh2 systemd-libs libtasn1 libtirpc libunistring libutil-linux linux-api-headers lz4 ncurses nettle npth openssl p11-kit pacman pacman-mirrorlist pam pambase pcre perl pinentry readline shadow sqlite sudo tzdata util-linux which xz zlib zstd"
 
     case "$(get_platform ${ARCH})" in
     x86_64) local repo_url="${SOURCE_PATH%/}/core/os/${ARCH}" ;;
