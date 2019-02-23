@@ -1,6 +1,6 @@
 # Linux Deploy CLI
 
-Copyright (C) 2015-2018 Anton Skshidlevsky, GPLv3
+Copyright (C) 2015-2019 Anton Skshidlevsky, GPLv3
 
 A command line application for installing and running GNU/Linux distributions in the chroot environment.
 
