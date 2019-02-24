@@ -56,7 +56,7 @@ COMMANDS:
 Help for the parameters of the main components:
 ```
    --distrib="debian"
-     The code name of Linux distribution, which will be installed. Supported "debian", "ubuntu", "kalilinux", "fedora", "centos", "archlinux", "gentoo", "opensuse", "slackware".
+     The code name of Linux distribution, which will be installed. Supported "debian", "ubuntu", "kalilinux", "fedora", "centos", "archlinux", "gentoo", "slackware".
 
    --target-type="file"
      The container deployment type, can specify "file", "directory", "partition", "ram" or "custom".
@@ -67,13 +67,13 @@ Help for the parameters of the main components:
    --disk-size="2000"
      Image file size when selected type of deployment "file". Zero means the automatic selection of the image size.
 
-   --fs-type="auto"
-     File system that will be created inside a image file or on a partition. Supported "ext2", "ext3", "ext4" or "auto".
+   --fs-type="ext4"
+     File system that will be created inside a image file or on a partition. Supported "ext2", "ext3" or "ext4"
 
    --arch="i386"
      Architecture of Linux distribution, supported "armel", "armhf", "arm64", "i386" and "amd64".
 
-   --suite="jessie"
+   --suite="stretch"
      Version of Linux distribution, supported versions "wheezy", "jessie" and "stretch" (also can be used "stable", "testing" and "unstable").
 
    --source-path="http://ftp.debian.org/debian/"
