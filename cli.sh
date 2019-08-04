@@ -6,7 +6,7 @@
 #
 ################################################################################
 
-VERSION="2.2.10"
+VERSION="2.2.11"
 
 ################################################################################
 # Common
@@ -1002,7 +1002,7 @@ helper()
 {
 cat <<EOF
 Linux Deploy ${VERSION}
-(c) 2012-2016 Anton Skshidlevsky, GPLv3
+(c) 2012-2019 Anton Skshidlevsky, GPLv3
 
 USAGE:
    ${0##*/} [OPTIONS] COMMAND ...

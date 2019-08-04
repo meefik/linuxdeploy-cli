@@ -38,7 +38,16 @@ do_start()
     do_configure
     if [ -n "${NET_TRIGGER}" ]; then
         msg ":: Starting ${COMPONENT} ... "
-        chroot_exec -u root "${NET_TRIGGER}"
+        chroot_exec -u root "${NET_TRIGGER} start"
+    fi
+    return 0
+}
+
+do_stop()
+{
+    if [ -n "${NET_TRIGGER}" ]; then
+        msg ":: Stopping ${COMPONENT} ... "
+        chroot_exec -u root "${NET_TRIGGER} stop"
     fi
     return 0
 }
