@@ -1,6 +1,6 @@
 case $ARCH in
   amd64|i386|powerpc|sparc)
-    default_mirror http://archive.ubuntu.com/ubuntu
+    default_mirror http://old-releases.ubuntu.com/ubuntu
     ;;
   *)
     default_mirror http://ports.ubuntu.com/ubuntu-ports
@@ -86,8 +86,8 @@ second_stage_install () {
 	baseprog="$(($baseprog + ${1:-1}))"
     }
 
-    if doing_variant fakechroot; then
-	setup_proc_fakechroot
+    if doing_variant fakechroot || [ "$CONTAINER" = "docker" ]; then
+	setup_proc_symlink
     else
 	setup_proc
 	in_target /sbin/ldconfig

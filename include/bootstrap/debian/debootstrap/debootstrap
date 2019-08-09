@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-VERSION='1.0.87-meefik'
+VERSION='1.0.114-meefik'
 
 unset TMP TEMP TMPDIR || true
 
@@ -18,7 +18,7 @@ if [ -z "$DEBOOTSTRAP_DIR" ]; then
 	fi
 fi
 
-. $DEBOOTSTRAP_DIR/functions
+. "$DEBOOTSTRAP_DIR/functions"
 exec 4>&1
 
 LANG=C
@@ -27,14 +27,13 @@ KEYRING=""
 DISABLE_KEYRING=""
 FORCE_KEYRING=""
 VARIANT=""
-MERGED_USR="no"
+MERGED_USR=""
 ARCH=""
 HOST_ARCH=""
 HOST_OS=""
 KEEP_DEBOOTSTRAP_DIR=""
 USE_DEBIANINSTALLER_INTERACTION=""
 SECOND_STAGE_ONLY=""
-PRINT_DEBS=""
 CHROOTDIR=""
 MAKE_TARBALL=""
 EXTRACTOR_OVERRIDE=""
@@ -45,6 +44,7 @@ VERBOSE=""
 CERTIFICATE=""
 CHECKCERTIF=""
 PRIVATEKEY=""
+CACHE_DIR=""
 
 DEF_MIRROR="http://deb.debian.org/debian"
 DEF_HTTPS_MIRROR="https://deb.debian.org/debian"
@@ -55,11 +55,11 @@ umask 022
 ###########################################################################
 
 ## phases:
-##   finddebs dldebs printdebs first_stage second_stage
+##   finddebs dldebs printdebs save_variables first_stage second_stage
 
 RESOLVE_DEPS=true
 
-WHAT_TO_DO="finddebs dldebs first_stage second_stage"
+WHAT_TO_DO="finddebs dldebs save_variables first_stage second_stage"
 am_doing_phase () {
 	# usage:   if am_doing_phase finddebs; then ...; fi
 	local x;
@@ -101,16 +101,18 @@ usage()
       --variant=X            use variant X of the bootstrap scripts
                              (currently supported variants: buildd, fakechroot,
                               minbase)
-      --merged-usr           make /{bin,sbin,lib}/ symlinks to /usr/
+      --no-merged-usr        do not make /{bin,sbin,lib}/ symlinks to /usr/
       --keyring=K            check Release files against keyring K
       --no-check-gpg         avoid checking Release file signatures
       --force-check-gpg      force checking Release file signatures
                              (also disables automatic fallback to HTTPS in case
                              of a missing keyring), aborting otherwise
       --no-resolve-deps      don't try to resolve dependencies automatically
+      --log-extra-deps       record extra dependency info in debootstrap.log
+      --cache-dir=DIR        Use specified directory as package cache directory
 
       --unpack-tarball=T     acquire .debs from a tarball instead of http
-      --make-tarball=T       download .debs and create a tarball (tgz format)
+      --make-tarball=T       download .debs and create a gzipped tarball
       --second-stage-target=DIR
                              Run second stage in a subdirectory instead of root
                                (can be used to create a foreign chroot)
@@ -151,12 +153,16 @@ if [ $# != 0 ] ; then
 		shift
 		;;
 	    --foreign)
-		if [ "$PRINT_DEBS" != "true" ]; then
-			WHAT_TO_DO="finddebs dldebs first_stage"
-		fi
+		check_conflicting_option "$1"
+		if [ -n "$LOOSEN_CONFLICTING_RESTRICTION" ]; then
+			WHAT_TO_DO="first_stage"
+		else
+			WHAT_TO_DO="finddebs dldebs save_variables first_stage"
+			fi
 		shift
 		;;
 	    --second-stage)
+		check_conflicting_option "$1"
 		WHAT_TO_DO="second_stage"
 		SECOND_STAGE_ONLY=true
 		shift
@@ -165,7 +171,7 @@ if [ $# != 0 ] ; then
 		if [ "$SECOND_STAGE_ONLY" != "true" ] ; then
 			error 1 STAGE2ONLY "option %s only applies in the second stage" "$1"
 		fi
-		if [ "$1" = "--second-stage-target" -a -n "$2" ] ; then
+		if [ "$1" = "--second-stage-target" ] && [ -n "$2" ] ; then
 			CHROOTDIR="$2"
 			shift 2
 		elif [ "$1" != "${1#--second-stage-target=}" ]; then
@@ -176,17 +182,19 @@ if [ $# != 0 ] ; then
 		fi
 		;;
 	    --print-debs)
+		check_conflicting_option "$1"
 		WHAT_TO_DO="finddebs printdebs kill_target"
-		PRINT_DEBS=true
 		shift
 		;;
 	    --download-only)
+		check_conflicting_option "$1"
 		WHAT_TO_DO="finddebs dldebs"
 		shift
 		;;
 	    --make-tarball|--make-tarball=?*)
-		WHAT_TO_DO="finddebs dldebs maketarball kill_target"
-		if [ "$1" = "--make-tarball" -a -n "$2" ] ; then
+		check_conflicting_option "$1"
+		WHAT_TO_DO="finddebs dldebs save_variables maketarball kill_target"
+		if [ "$1" = "--make-tarball" ] && [ -n "$2" ] ; then
 			MAKE_TARBALL="$2"
 			shift 2
 		elif [ "$1" != "${1#--make-tarball=}" ]; then
@@ -205,12 +213,16 @@ if [ $# != 0 ] ; then
 		RESOLVE_DEPS=false
 		shift
 		;;
+	    --log-extra-deps)
+		LOG_EXTRA_DEPS=true
+		shift
+		;;
 	    --keep-debootstrap-dir)
 		KEEP_DEBOOTSTRAP_DIR=true
 		shift
 		;;
 	    --arch|--arch=?*)
-		if [ "$1" = "--arch" -a -n "$2" ] ; then
+		if [ "$1" = "--arch" ] && [ -n "$2" ] ; then
 			ARCH="$2"
 			shift 2
                 elif [ "$1" != "${1#--arch=}" ]; then
@@ -221,7 +233,7 @@ if [ $# != 0 ] ; then
 		fi
 		;;
 	    --extractor|--extractor=?*)
-		if [ "$1" = "--extractor" -a -n "$2" ] ; then
+		if [ "$1" = "--extractor" ] && [ -n "$2" ] ; then
 			EXTRACTOR_OVERRIDE="$2"
 			shift 2
 		elif [ "$1" != "${1#--extractor=}" ]; then
@@ -231,7 +243,7 @@ if [ $# != 0 ] ; then
 			error 1 NEEDARG "option requires an argument %s" "$1"
 		fi
 		if valid_extractor "$EXTRACTOR_OVERRIDE"; then
-			if ! type "$EXTRACTOR_OVERRIDE" >/dev/null 2>&1; then
+			if ! in_path "$EXTRACTOR_OVERRIDE"; then
 				error 1 MISSINGEXTRACTOR "The selected extractor cannot be found: %s" "$EXTRACTOR_OVERRIDE"
 			fi
 		else
@@ -239,10 +251,22 @@ if [ $# != 0 ] ; then
 		fi
 		;;
 	    --unpack-tarball|--unpack-tarball=?*)
-		if [ "$1" = "--unpack-tarball" -a -n "$2" ] ; then
+		if [ "$1" = "--unpack-tarball" ] && [ -n "$2" ] ; then
+			check_conflicting_option "$1"
+			if [ -n "$LOOSEN_CONFLICTING_RESTRICTION" ]; then
+				WHAT_TO_DO="first_stage"
+			else
+				WHAT_TO_DO="first_stage second_stage"
+			fi
 			UNPACK_TARBALL="$2"
 			shift 2
 		elif [ "$1" != "${1#--unpack-tarball=}" ]; then
+			check_conflicting_option "$1"
+			if [ -n "$LOOSEN_CONFLICTING_RESTRICTION" ]; then
+				WHAT_TO_DO="first_stage"
+			else
+				WHAT_TO_DO="first_stage second_stage"
+			fi
 			UNPACK_TARBALL="${1#--unpack-tarball=}"
 			shift
 		else
@@ -253,7 +277,7 @@ if [ $# != 0 ] ; then
 		fi
 		;;
 	    --include|--include=?*)
-		if [ "$1" = "--include" -a -n "$2" ]; then
+		if [ "$1" = "--include" ] && [ -n "$2" ]; then
 			ADDITIONAL="$2"
 			shift 2
                 elif [ "$1" != "${1#--include=}" ]; then
@@ -265,7 +289,7 @@ if [ $# != 0 ] ; then
 		ADDITIONAL="$(echo "$ADDITIONAL" | tr , " ")"
 		;;
 	    --exclude|--exclude=?*)
-		if [ "$1" = "--exclude" -a -n "$2" ]; then
+		if [ "$1" = "--exclude" ] && [ -n "$2" ]; then
 			EXCLUDE="$2"
 			shift 2
                 elif [ "$1" != "${1#--exclude=}" ]; then
@@ -282,7 +306,7 @@ if [ $# != 0 ] ; then
 		shift 1
 		;;
 	    --components|--components=?*)
-		if [ "$1" = "--components" -a -n "$2" ]; then
+		if [ "$1" = "--components" ] && [ -n "$2" ]; then
 			USE_COMPONENTS="$2"
 			shift 2
                 elif [ "$1" != "${1#--components=}" ]; then
@@ -294,7 +318,7 @@ if [ $# != 0 ] ; then
 		USE_COMPONENTS="$(echo "$USE_COMPONENTS" | tr , "|")"
 		;;
 	    --variant|--variant=?*)
-		if [ "$1" = "--variant" -a -n "$2" ]; then
+		if [ "$1" = "--variant" ] && [ -n "$2" ]; then
 			VARIANT="$2"
 			shift 2
                 elif [ "$1" != "${1#--variant=}" ]; then
@@ -302,6 +326,24 @@ if [ $# != 0 ] ; then
 			shift 1
 		else
 			error 1 NEEDARG "option requires an argument %s" "$1"
+		fi
+		;;
+	    --cache-dir|--cache-dir=?*)
+		# Okay, let's check user's option
+		if [ "$1" = "--cache-dir" ] && [ -n "$2" ] ; then
+			CACHE_DIR="$2"
+			shift 2
+		elif [ "$1" != "${1#--cache-dir=}" ]; then
+			CACHE_DIR="${1#--cache-dir=}"
+			shift
+		else
+			error 1 NEEDARG "option requires an argument %s" "$1"
+		fi
+		if [ ! -z "${CACHE_DIR##/*}" ]; then
+			error 1 NOTABSOLUTEPATH "cache directory should be specified with an absolute path"
+		fi
+		if [ ! -d "$CACHE_DIR" ] ; then
+			error 1 NOCACHEDIR "%s: No such directory" "$CACHE_DIR"
 		fi
 		;;
             --merged-usr)
@@ -316,7 +358,7 @@ if [ $# != 0 ] ; then
 		if ! gpgv --version >/dev/null 2>&1; then
 			error 1 NEEDGPGV "gpgv not installed, but required for Release verification"
 		fi
-		if [ "$1" = "--keyring" -a -n "$2" ]; then
+		if [ "$1" = "--keyring" ] && [ -n "$2" ]; then
 			KEYRING="$2"
 			shift 2
                 elif [ "$1" != "${1#--keyring=}" ]; then
@@ -324,6 +366,9 @@ if [ $# != 0 ] ; then
 			shift 1
 		else
 			error 1 NEEDARG "option requires an argument %s" "$1"
+		fi
+		if [ ! -e "$KEYRING" ]; then
+			error 1 KEYRING "specified keyring file ($KEYRING) not found"
 		fi
 		;;
 	    --no-check-gpg)
@@ -335,25 +380,25 @@ if [ $# != 0 ] ; then
 			FORCE_KEYRING=1
 		;;
 	    --certificate|--certificate=?*)
-		if [ "$1" = "--certificate" -a -n "$2" ]; then
+		if [ "$1" = "--certificate" ] && [ -n "$2" ]; then
 			CERTIFICATE="--certificate=$2"
 			shift 2
 		elif [ "$1" != "${1#--certificate=}" ]; then
-			CERTIFICATE="--certificate=${1#--certificate=}" 
+			CERTIFICATE="--certificate=${1#--certificate=}"
 			shift 1
 		else
-		       error 1 NEEDARG "option requires an argument %s" "$1" 
+		       error 1 NEEDARG "option requires an argument %s" "$1"
 		fi
 		;;
 	    --private-key|--private-key=?*)
-		if [ "$1" = "--private-key" -a -n "$2" ]; then
+		if [ "$1" = "--private-key" ] && [ -n "$2" ]; then
 			PRIVATEKEY="--private-key=$2"
 			shift 2
 		elif [ "$1" != "${1#--private-key=}" ]; then
-			PRIVATEKEY="--private-key=${1#--private-key=}" 
+			PRIVATEKEY="--private-key=${1#--private-key=}"
 			shift 1
 		else
-		       error 1 NEEDARG "option requires an argument %s" "$1" 
+		       error 1 NEEDARG "option requires an argument %s" "$1"
 		fi
 		;;
 	    --no-check-certificate)
@@ -371,18 +416,32 @@ if [ $# != 0 ] ; then
 fi
 
 ###########################################################################
+# do auto proxy discovery
+AUTOPROXY=""
+if ! doing_variant fakechroot && command -v apt-config >/dev/null; then
+    eval "$(apt-config shell AUTOPROXY Acquire::http::ProxyAutoDetect)"
+    if [ -z "$http_proxy" ] && [ -x "$AUTOPROXY" ]; then
+        http_proxy="$($AUTOPROXY)"
+        if [ -n "$http_proxy" ]; then
+            info AUTOPROXY "Using auto-detected proxy: $http_proxy"
+            export http_proxy
+        fi
+    fi
+fi
 
-if [ -n "$DISABLE_KEYRING" -a -n "$FORCE_KEYRING" ]; then
+###########################################################################
+if [ -n "$DISABLE_KEYRING" ] && [ -n "$FORCE_KEYRING" ]; then
 	error 1 BADARG "Both --no-check-gpg and --force-check-gpg specified, please pick one (at most)"
 fi
 
 ###########################################################################
 
 if [ "$SECOND_STAGE_ONLY" = "true" ]; then
-	SUITE=$(cat $DEBOOTSTRAP_DIR/suite)
-	ARCH=$(cat $DEBOOTSTRAP_DIR/arch)
-	if [ -e $DEBOOTSTRAP_DIR/variant ]; then
-		VARIANT=$(cat $DEBOOTSTRAP_DIR/variant)
+	SUITE=$(cat "$DEBOOTSTRAP_DIR/suite")
+	ARCH=$(cat "$DEBOOTSTRAP_DIR/arch")
+	USER_MIRROR=$(cat "$DEBOOTSTRAP_DIR/mirror")
+	if [ -e "$DEBOOTSTRAP_DIR/variant" ]; then
+		VARIANT=$(cat "$DEBOOTSTRAP_DIR/variant")
 		SUPPORTED_VARIANTS="$VARIANT"
 	fi
 	if [ -z "$CHROOTDIR" ]; then
@@ -390,8 +449,11 @@ if [ "$SECOND_STAGE_ONLY" = "true" ]; then
 	else
 		TARGET=$CHROOTDIR
 	fi
-	SCRIPT=$DEBOOTSTRAP_DIR/suite-script
+	SCRIPT="$DEBOOTSTRAP_DIR/suite-script"
 else
+	if ! in_path wget; then
+		error 1 NEEDWGET "You must install wget to download packages."
+	fi
 	if [ -z "$1" ] || [ -z "$2" ]; then
 		usage_err 1 NEEDSUITETARGET "You must specify a suite and a target."
 	fi
@@ -401,9 +463,9 @@ else
 	TARGET="${TARGET%/}"
 	if [ "${TARGET#/}" = "${TARGET}" ]; then
 		if [ "${TARGET%/*}" = "$TARGET" ] ; then
-			TARGET="$(echo "`pwd`/$TARGET")"
+			TARGET="$(pwd)/$TARGET"
 		else
-			TARGET="$(cd "${TARGET%/*}"; echo "`pwd`/${TARGET##*/}")"
+			TARGET="$(cd "${TARGET%/*}"; echo "$(pwd)/${TARGET##*/}")"
 		fi
 	fi
 
@@ -413,7 +475,21 @@ else
 		SUPPORTED_VARIANTS="$VARIANT"
 	fi
 	if [ "$4" != "" ]; then
-		SCRIPT="$4"
+		if [ -e "$DEBOOTSTRAP_DIR/scripts/$4" ]; then
+			SCRIPT="$DEBOOTSTRAP_DIR/scripts/$4"
+		else
+			SCRIPT="$4"
+		fi
+	fi
+fi
+
+###########################################################################
+
+if am_doing_phase kill_target; then
+	# Require empty target when we are going to remove it afterwards
+	if [ -d "$TARGET" ] && [ -n "$(ls -A "$TARGET")" ] && \
+	   [ "$KEEP_DEBOOTSTRAP_DIR" != "true" ]; then
+		error 1 BADTARGET "Target directory '$TARGET' is not empty and it would be wiped"
 	fi
 fi
 
@@ -421,17 +497,17 @@ fi
 
 if in_path dpkg && \
      dpkg --print-architecture >/dev/null 2>&1; then
-	HOST_ARCH=`/usr/bin/dpkg --print-architecture`
+	HOST_ARCH=$(/usr/bin/dpkg --print-architecture)
 elif in_path udpkg && \
      udpkg --print-architecture >/dev/null 2>&1; then
-	HOST_ARCH=`/usr/bin/udpkg --print-architecture`
-elif [ -e $DEBOOTSTRAP_DIR/arch ]; then
-	HOST_ARCH=`cat $DEBOOTSTRAP_DIR/arch`
+	HOST_ARCH=$(/usr/bin/udpkg --print-architecture)
+elif [ -e "$DEBOOTSTRAP_DIR/arch" ]; then
+	HOST_ARCH=$(cat "$DEBOOTSTRAP_DIR/arch")
 fi
 HOST_OS="$HOST_ARCH"
 # basic host OS guessing for non-Debian systems
 if [ -z "$HOST_OS" ]; then
-	case `uname` in
+	case $(uname) in
 		Linux)
 			HOST_OS=linux
 		;;
@@ -448,7 +524,7 @@ if [ -z "$HOST_OS" ]; then
 fi
 
 if [ -z "$ARCH" ]; then
-	ARCH=$HOST_ARCH
+	ARCH="$HOST_ARCH"
 fi
 
 if [ -z "$ARCH" ] || [ -z "$HOST_OS" ]; then
@@ -465,13 +541,19 @@ fi
 if [ "$TARGET" = "/" ]; then
 	CHROOT_CMD=""
 else
-	CHROOT_CMD="chroot $TARGET"
+	CHROOT_CMD="chroot \"$TARGET\""
+fi
+
+# fakeroot cannot check /proc/1/environ
+if [ "$HOST_OS" = Linux ] && ! doing_variant fakechroot && [ "$CONTAINER" = "lxc-libvirt" ]; then
+       CHROOT_CMD="unshare --net $CHROOT_CMD"
 fi
 
 if [ -z "$SHA_SIZE" ]; then
 	SHA_SIZE=256
 fi
 if ! in_path "sha${SHA_SIZE}sum" && ! in_path "sha${SHA_SIZE}"; then
+	warning SHA_SIZE "Cannot find binary for checking sha%s checksums, falling back to sha1" "${SHA_SIZE}"
 	SHA_SIZE=1
 fi
 DEBOOTSTRAP_CHECKSUM_FIELD="SHA$SHA_SIZE"
@@ -516,16 +598,39 @@ fi
 
 ###########################################################################
 
+if [ -x /usr/bin/arch-test ] && am_doing_phase second_stage; then
+	if doing_variant fakechroot; then
+		ret=0; arch-test "$ARCH" || ret=$?
+	# Avoid failure with old arch-test package
+	elif arch-test --version > /dev/null 2>&1; then
+		ret=0; arch-test -c "$TARGET" "$ARCH" || ret=$?
+	else
+		ret=3
+	fi
+
+	case $ret in
+	0)      info ARCHEXEC "Target architecture can be executed" ;;
+	1)      error 1 ARCHNOTEXEC "Unable to execute target architecture" ;;
+	*)      info ARCHEXECUNKNOWN "Can't verify that target arch works" ;;
+	esac
+fi
+
+###########################################################################
+
+
+
 if [ "$UNPACK_TARBALL" ]; then
 	if [ "${UNPACK_TARBALL#/}" = "$UNPACK_TARBALL" ]; then
-		error 1 TARPATH "Tarball must be given a complete path"
+		error 1 TARPATH "Tarball must be given an absolute path"
 	fi
 	if [ "${UNPACK_TARBALL%.tar}" != "$UNPACK_TARBALL" ]; then
+		(cd "$TARGET" && tar -xf "$UNPACK_TARBALL")
+	elif [ "${UNPACK_TARBALL%.tar.[g|x]z}" != "$UNPACK_TARBALL" ]; then
 		(cd "$TARGET" && tar -xf "$UNPACK_TARBALL")
 	elif [ "${UNPACK_TARBALL%.tgz}" != "$UNPACK_TARBALL" ]; then
 		(cd "$TARGET" && zcat "$UNPACK_TARBALL" | tar -xf -)
 	else
-		error 1 NOTTAR "Unknown tarball: must be either .tar or .tgz"
+		error 1 NOTTAR "Unknown tarball: must be .tar.[gz,xz], .tar or .tgz"
 	fi
 fi
 
@@ -533,23 +638,18 @@ fi
 
 . "$SCRIPT"
 
-if [ "$SECOND_STAGE_ONLY" = "true" ]; then
-	MIRRORS=null:
-else
-	MIRRORS="$DEF_MIRROR"
-	if [ "$USER_MIRROR" != "" ]; then
-		MIRRORS="$USER_MIRROR"
-		MIRRORS="${MIRRORS%/}"
-	fi
+MIRRORS="$DEF_MIRROR"
+if [ "$USER_MIRROR" != "" ]; then
+	MIRRORS="${USER_MIRROR%/}"
 fi
 
 export MIRRORS
 
 ok=false
 for v in $SUPPORTED_VARIANTS; do
-	if doing_variant $v; then ok=true; fi
+	if doing_variant "$v"; then ok=true; fi
 done
-if ! $ok; then
+if ! "$ok"; then
 	error 1 UNSUPPVARIANT "unsupported variant"
 fi
 
@@ -565,31 +665,34 @@ if am_doing_phase finddebs; then
 	work_out_debs
 
 	base=$(without "$base $ADDITIONAL" "$EXCLUDE")
+	required=$(without "$required" "$EXCLUDE")
 
 	if [ "$RESOLVE_DEPS" = true ]; then
-		requiredX=$(echo $(echo $required | tr ' ' '\n' | sort | uniq))
-		baseX=$(echo $(echo $base | tr ' ' '\n' | sort | uniq))
-
-		baseN=$(without "$baseX" "$requiredX")
-		baseU=$(without "$baseX" "$baseN")
-
-		if [ "$baseU" != "" ]; then
-			info REDUNDANTBASE "Found packages in base already in required: %s" "$baseU"
-		fi
+		requiredX=$(echo "$required" | tr ' ' '\n' | sort | uniq)
+		baseX=$(echo "$base" | tr ' ' '\n' | sort | uniq)
 
 		info RESOLVEREQ "Resolving dependencies of required packages..."
-		required=$(resolve_deps $requiredX)
+		required=$(resolve_deps "$requiredX")
 		info RESOLVEBASE "Resolving dependencies of base packages..."
-		base=$(resolve_deps $baseX)
+		base=$(resolve_deps "$baseX")
 		base=$(without "$base" "$required")
 
-		requiredX=$(without "$required" "$requiredX")
-		baseX=$(without "$base" "$baseX")
-		if [ "$requiredX" != "" ]; then
-			info NEWREQUIRED "Found additional required dependencies: %s" "$requiredX"
-		fi
-		if [ "$baseX" != "" ]; then
-			info NEWBASE "Found additional base dependencies: %s" "$baseX"
+		if [ "$LOG_EXTRA_DEPS" = true ]; then
+			baseN=$(without "$baseX" "$requiredX")
+			baseU=$(without "$baseX" "$baseN")
+
+			if [ "$baseU" != "" ]; then
+		  		info REDUNDANTBASE "Found packages in base already in required: %s" "$baseU"
+			fi
+
+			requiredX=$(without "$required" "$requiredX")
+			baseX=$(without "$base" "$baseX")
+			if [ "$requiredX" != "" ]; then
+				info NEWREQUIRED "Found additional required dependencies: %s" "$requiredX"
+			fi
+			if [ "$baseX" != "" ]; then
+				info NEWBASE "Found additional base dependencies: %s" "$baseX"
+			fi
 		fi
 	fi
 
@@ -604,16 +707,39 @@ if am_doing_phase dldebs; then
 	if [ "$GOT_INDICES" != "true" ]; then
 		download_indices
 	fi
-	download $all_debs
+	download "$all_debs"
+fi
+
+if am_doing_phase save_variables; then
+	cp "$DEBOOTSTRAP_DIR/debootstrap"				 "$TARGET/debootstrap/debootstrap"
+	cp "$DEBOOTSTRAP_DIR/functions"	 "$TARGET/debootstrap/functions"
+	cp "$SCRIPT"			 "$TARGET/debootstrap/suite-script"
+	# pick up common setting scripts
+	cp "$DEBOOTSTRAP_DIR"/scripts/*-common	"$TARGET/debootstrap/"
+	echo "$ARCH"			>"$TARGET/debootstrap/arch"
+	echo "$SUITE"			>"$TARGET/debootstrap/suite"
+	echo "$USER_MIRROR"		>"$TARGET/debootstrap/mirror"
+	[ "" = "$VARIANT" ] ||
+	echo "$VARIANT"			>"$TARGET/debootstrap/variant"
+	echo "$required"		>"$TARGET/debootstrap/required"
+	echo "$base"			>"$TARGET/debootstrap/base"
+
+	chmod 755 "$TARGET/debootstrap/debootstrap"
 fi
 
 if am_doing_phase maketarball; then
-	(cd $TARGET;
-	 tar czf - var/lib/apt var/cache/apt) >$MAKE_TARBALL
+	(cd "$TARGET";
+	 tar czf - var/lib/apt var/cache/apt debootstrap) >"$MAKE_TARBALL"
 fi
 
 if am_doing_phase first_stage; then
 	choose_extractor
+
+	if [ -n "$UNPACK_TARBALL" ]; then
+		required=$(cat "$TARGET/debootstrap/required")
+		base=$(cat "$TARGET/debootstrap/base")
+		all_debs="$required $base"
+	fi
 
 	# first stage sets up the chroot -- no calls should be made to
 	# "chroot $TARGET" here; but they should be possible by the time it's
@@ -621,11 +747,14 @@ if am_doing_phase first_stage; then
 	first_stage_install
 
 	if ! am_doing_phase second_stage; then
-		cp $DEBOOTSTRAP_DIR/debootstrap	 "$TARGET/debootstrap/debootstrap"
-		cp $DEBOOTSTRAP_DIR/functions	 "$TARGET/debootstrap/functions"
-		cp $SCRIPT			 "$TARGET/debootstrap/suite-script"
+		cp "$DEBOOTSTRAP_DIR/debootstrap"				 "$TARGET/debootstrap/debootstrap"
+		cp "$DEBOOTSTRAP_DIR/functions"	 "$TARGET/debootstrap/functions"
+		cp "$SCRIPT"			 "$TARGET/debootstrap/suite-script"
+		# pick up common setting scripts
+		cp "$DEBOOTSTRAP_DIR"/scripts/*-common	"$TARGET/debootstrap/"
 		echo "$ARCH"			>"$TARGET/debootstrap/arch"
 		echo "$SUITE"			>"$TARGET/debootstrap/suite"
+		echo "$USER_MIRROR"		>"$TARGET/debootstrap/mirror"
 		[ "" = "$VARIANT" ] ||
 		echo "$VARIANT"			>"$TARGET/debootstrap/variant"
 		echo "$required"		>"$TARGET/debootstrap/required"
@@ -633,33 +762,26 @@ if am_doing_phase first_stage; then
 
 		chmod 755 "$TARGET/debootstrap/debootstrap"
 	fi
+
+	# create sources.list
+	if [ "${MIRRORS#http*://}" != "$MIRRORS" ]; then
+		setup_apt_sources "${MIRRORS%% *}"
+	else
+		setup_apt_sources "$DEF_MIRROR"
+	fi
 fi
 
 if am_doing_phase second_stage; then
 	if [ "$SECOND_STAGE_ONLY" = true ]; then
-		required="$(cat $DEBOOTSTRAP_DIR/required)"
-		base="$(cat $DEBOOTSTRAP_DIR/base)"
+		required=$(cat "$DEBOOTSTRAP_DIR/required")
+		base=$(cat "$DEBOOTSTRAP_DIR/base")
 		all_debs="$required $base"
 	fi
 
 	# second stage uses the chroot to clean itself up -- has to be able to
 	# work from entirely within the chroot (in case we've booted into it,
 	# possibly over NFS eg)
-
 	second_stage_install
-
-	# create sources.list
-	# first, kill debootstrap.invalid sources.list
-	if [ -e "$TARGET/etc/apt/sources.list" ]; then
-		rm -f "$TARGET/etc/apt/sources.list"
-	fi
-	if [ "${MIRRORS#http://}" != "$MIRRORS" ]; then
-		setup_apt_sources "${MIRRORS%% *}"
-		mv_invalid_to "${MIRRORS%% *}"
-	else
-		setup_apt_sources "$DEF_MIRROR"
-		mv_invalid_to "$DEF_MIRROR"
-	fi
 
 	if [ -e "$TARGET/debootstrap/debootstrap.log" ]; then
 		if [ "$KEEP_DEBOOTSTRAP_DIR" = true ]; then

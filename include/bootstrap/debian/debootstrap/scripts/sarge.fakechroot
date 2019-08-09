@@ -101,7 +101,7 @@ second_stage_install () {
     }
 
     setup_devices_fakechroot
-    setup_proc_fakechroot
+    setup_proc_symlink
 
     DEBIAN_FRONTEND=noninteractive
     export DEBIAN_FRONTEND

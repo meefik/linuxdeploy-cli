@@ -1,34 +1,3 @@
-case $ARCH in
-  amd64|i386)
-	case $SUITE in
-	  gutsy|hardy|intrepid|jaunty|karmic|lucid|maverick|natty|oneiric|precise|quantal|raring|saucy|utopic|vivid|wily|yakkety|zesty)
-	default_mirror http://old-releases.ubuntu.com/ubuntu
-	  ;;
-	  *)
-	default_mirror http://archive.ubuntu.com/ubuntu
-	;;
-	esac
-	;;
-  sparc)
-	case $SUITE in
-	  gutsy)
-	default_mirror http://old-releases.ubuntu.com/ubuntu
-	;;
-	  *)
-	default_mirror http://ports.ubuntu.com/ubuntu-ports
-	;;
-	esac
-	;;
-  *)
-	default_mirror http://ports.ubuntu.com/ubuntu-ports
-	;;
-esac
-mirror_style release
-download_style apt
-finddebs_style from-indices
-variants - buildd fakechroot minbase
-keyring /usr/share/keyrings/ubuntu-archive-keyring.gpg
-
 if doing_variant fakechroot; then
 	test "$FAKECHROOT" = "true" || error 1 FAKECHROOTREQ "This variant requires fakechroot environment to be started"
 fi
@@ -68,7 +37,7 @@ work_out_debs () {
 first_stage_install () {
 	case "$CODENAME" in
 		# "merged-usr" blacklist for past releases
-		gutsy|hardy|intrepid|jaunty|karmic|lucid|maverick|natty|oneiric|precise|quantal|raring|saucy|trusty|utopic|vivid|wily|xenial|yakkety|zesty|artful|bionic|cosmic)
+		etch*|lenny|squeeze|wheezy|jessie*)
 			[ -z "$MERGED_USR" ] && MERGED_USR="no"
 			;;
 		*)
@@ -77,6 +46,10 @@ first_stage_install () {
 			;;
 	esac
 
+	if [ "$CODENAME" = "stretch" ] && [ -z "$MERGED_USR" ]; then
+		MERGED_USR="no"
+	fi
+		
 	setup_merged_usr
 	extract $required
 
@@ -87,12 +60,12 @@ first_stage_install () {
 	setup_etc
 	if [ ! -e "$TARGET/etc/fstab" ]; then
 		echo '# UNCONFIGURED FSTAB FOR BASE SYSTEM' > "$TARGET/etc/fstab"
-		chmod 644 "$TARGET/etc/fstab"
+		chown 0:0 "$TARGET/etc/fstab"; chmod 644 "$TARGET/etc/fstab"
 	fi
 
 	setup_devices
 
-        if doing_variant fakechroot || [ "$CONTAINER" = "docker" ]; then
+	if doing_variant fakechroot || [ "$CONTAINER" = "docker" ]; then
 		setup_proc_symlink
 	fi
 }
@@ -187,12 +160,6 @@ Status: install ok installed" >> "$TARGET/var/lib/dpkg/status"
 
 	info CONFREQ "Configuring required packages..."
 
-	if doing_variant fakechroot && [ -e "$TARGET/var/lib/dpkg/info/initscripts.postinst" ]
-	then
-		# fix initscripts postinst (no mounting possible, and wrong if condition)
-		sed -i '/dpkg.*--compare-versions/ s/\<lt\>/lt-nl/' "$TARGET/var/lib/dpkg/info/initscripts.postinst"
-	fi
-
 	echo \
 "#!/bin/sh
 exit 101" > "$TARGET/usr/sbin/policy-rc.d"
@@ -204,16 +171,6 @@ exit 101" > "$TARGET/usr/sbin/policy-rc.d"
 echo
 echo \"Warning: Fake start-stop-daemon called, doing nothing\"" > "$TARGET/sbin/start-stop-daemon"
 	chmod 755 "$TARGET/sbin/start-stop-daemon"
-
-	if [ -x "$TARGET/sbin/initctl" ]; then
-	  mv "$TARGET/sbin/initctl" "$TARGET/sbin/initctl.REAL"
-	  echo \
-"#!/bin/sh
-if [ \"\$1\" = version ]; then exec /sbin/initctl.REAL \"\$@\"; fi
-echo
-echo \"Warning: Fake initctl called, doing nothing\"" > "$TARGET/sbin/initctl"
-	  chmod 755 "$TARGET/sbin/initctl"
-	fi
 
 	setup_dselect_method apt
 
@@ -255,9 +212,6 @@ echo \"Warning: Fake initctl called, doing nothing\"" > "$TARGET/sbin/initctl"
 			dpkg_progress $baseprog $bases CONFBASE "Configuring base system" CONFIGURING
 	fi
 
-	if [ -x "$TARGET/sbin/initctl.REAL" ]; then
-		mv "$TARGET/sbin/initctl.REAL" "$TARGET/sbin/initctl"
-	fi
 	mv "$TARGET/sbin/start-stop-daemon.REAL" "$TARGET/sbin/start-stop-daemon"
 	rm -f "$TARGET/usr/sbin/policy-rc.d"
 

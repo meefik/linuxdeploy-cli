@@ -54,7 +54,7 @@ first_stage_install () {
 	setup_etc
 	if [ ! -e "$TARGET/etc/fstab" ]; then
 		echo '# UNCONFIGURED FSTAB FOR BASE SYSTEM' > "$TARGET/etc/fstab"
-		chmod 644 "$TARGET/etc/fstab"
+		chown 0:0 "$TARGET/etc/fstab"; chmod 644 "$TARGET/etc/fstab"
 	fi
 
 	setup_devices
@@ -89,8 +89,8 @@ second_stage_install () {
 		baseprog="$(($baseprog + ${1:-1}))"
 	}
 
-	if doing_variant fakechroot; then
-		setup_proc_fakechroot
+	if doing_variant fakechroot || [ "$CONTAINER" = "docker" ]; then
+		setup_proc_symlink
 	else
 		setup_proc
 		in_target /sbin/ldconfig

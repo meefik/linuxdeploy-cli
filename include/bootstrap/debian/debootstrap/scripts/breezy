@@ -3,6 +3,7 @@ mirror_style release
 download_style apt
 finddebs_style from-indices
 variants - buildd
+force_md5
 
 case $ARCH in
   alpha|ia64) LIBC="libc6.1" ;;
