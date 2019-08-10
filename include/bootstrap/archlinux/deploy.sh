@@ -55,15 +55,12 @@ do_install()
 
     msg ":: Installing ${COMPONENT} ... "
 
-    local base_packages="filesystem acl archlinux-keyring attr bash bzip2 ca-certificates ca-certificates-mozilla ca-certificates-utils coreutils cracklib curl db e2fsprogs expat findutils gcc-libs gdbm glib2 glibc gmp gnupg gnutls gpgme iana-etc keyutils krb5 libarchive libassuan libcap libffi libgcrypt libgpg-error libidn libidn2 libksba libldap libnghttp2 libpsl libsasl libsecret libssh2 systemd-libs libtasn1 libtirpc libunistring libutil-linux linux-api-headers lz4 ncurses nettle npth openssl p11-kit pacman pacman-mirrorlist pam pambase pcre perl pinentry readline shadow sqlite sudo tzdata util-linux which xz zlib zstd"
-
+    local repo_url
     case "$(get_platform ${ARCH})" in
-    x86_64) local repo_url="${SOURCE_PATH%/}/core/os/${ARCH}" ;;
-    arm*|x86) local repo_url="${SOURCE_PATH%/}/${ARCH}/core" ;;
+    x86_64) repo_url="${SOURCE_PATH%/}/core/os/${ARCH}" ;;
+    arm*|x86) repo_url="${SOURCE_PATH%/}/${ARCH}/core" ;;
     *) return 1 ;;
     esac
-
-    msg "URL: ${repo_url}"
 
     msg -n "Preparing for deployment ... "
     local cache_dir="${CHROOT_DIR}/var/cache/pacman/pkg"
@@ -71,15 +68,14 @@ do_install()
     is_ok "fail" "done" || return 1
 
     msg -n "Retrieving packages list ... "
-    local pkg_list=$(wget -q -O - "${repo_url}/" | sed -n '/<a / s/^.*<a [^>]*href="\([^\"]*\)".*$/\1/p' | awk -F'/' '{print $NF}' | sort -rn)
+    local core_files=$(wget -q -O - "${repo_url}/core.db.tar.gz" | tar xOz | grep '.pkg.tar.xz$' | grep -v -e '^linux-' -e '^grub-' -e '^efibootmgr-' -e '^gcc-' -e '^openssh-' | sort)
     is_ok "fail" "done" || return 1
 
-    msg "Retrieving base packages: "
-    for package in ${base_packages}
+    msg "Retrieving core packages: "
+    local fs_file=$(echo ${core_files} | grep -m1 '^filesystem-')
+    for pkg_file in ${fs_file} ${core_files}
     do
-        msg -n "${package} ... "
-        local pkg_file=$(echo "${pkg_list}" | grep -m1 -e "^${package}-[[:digit:]].*\.xz$" -e "^${package}-[[:digit:]].*\.gz$")
-        test "${pkg_file}"; is_ok "fail" || return 1
+        msg -n "${pkg_file%-*} ... "
         # download
         local i
         for i in 1 2 3
@@ -88,12 +84,7 @@ do_install()
             sleep 30s
         done
         # unpack
-        case "${pkg_file}" in
-        *gz) tar xzf "${cache_dir}/${pkg_file}" -C "${CHROOT_DIR}" --exclude='./dev' --exclude='./sys' --exclude='./proc' --exclude='.INSTALL' --exclude='.MTREE' --exclude='.PKGINFO';;
-        *bz2) tar xjf "${cache_dir}/${pkg_file}" -C "${CHROOT_DIR}" --exclude='./dev' --exclude='./sys' --exclude='./proc' --exclude='.INSTALL' --exclude='.MTREE' --exclude='.PKGINFO';;
-        *xz) tar xJf "${cache_dir}/${pkg_file}" -C "${CHROOT_DIR}" --exclude='./dev' --exclude='./sys' --exclude='./proc' --exclude='.INSTALL' --exclude='.MTREE' --exclude='.PKGINFO';;
-        *) msg "fail"; return 1;;
-        esac
+        tar xJf "${cache_dir}/${pkg_file}" -C "${CHROOT_DIR}" --exclude='./dev' --exclude='./sys' --exclude='./proc' --exclude='.INSTALL' --exclude='.MTREE' --exclude='.PKGINFO'
         is_ok "fail" "done" || return 1
     done
 
@@ -104,7 +95,7 @@ do_install()
     is_ok "fail" "done"
 
     msg "Installing base packages: "
-    pacman_install base ${base_packages}
+    pacman_install base $(echo ${core_files} | sed 's/-[0-9].*$//')
     is_ok || return 1
 
     msg -n "Clearing cache ... "

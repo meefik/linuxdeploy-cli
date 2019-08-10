@@ -33,12 +33,9 @@ do_install()
 
     msg ":: Installing ${COMPONENT} ... "
 
-    local repo_url="${SOURCE_PATH%/}/${SUITE}"
-
-    msg "URL: ${repo_url}"
-
     msg -n "Retrieving rootfs archive ... "
-    local rootfs_name=$(wget -q -O - "${repo_url}/releases/${ARCH}/latest-releases.yaml" | grep "file: alpine-minirootfs" | awk '{print $2}')
+    local repo_url="${SOURCE_PATH%/}/${SUITE}"
+    local rootfs_name=$(wget -q -O - "${repo_url}/releases/${ARCH}/latest-releases.yaml" | grep -m1 "file: alpine-minirootfs" | awk '{print $2}')
     wget -q -O - "${repo_url}/releases/${ARCH}/${rootfs_name}" | tar xz -C "${CHROOT_DIR}"
     is_ok "fail" "done" || return 1
 
