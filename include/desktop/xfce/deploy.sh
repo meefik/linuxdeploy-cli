@@ -7,7 +7,7 @@ do_install()
     msg ":: Installing ${COMPONENT} ... "
     local packages=""
     case "${DISTRIB}:${ARCH}:${SUITE}" in
-    debian:*|ubuntu:*|kalilinux:*)
+    debian:*|ubuntu:*|kali:*)
         packages="desktop-base dbus-x11 x11-xserver-utils xfonts-base xfonts-utils xfce4 xfce4-terminal tango-icon-theme hicolor-icon-theme"
         apt_install ${packages}
     ;;

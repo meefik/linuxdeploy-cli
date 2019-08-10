@@ -10,7 +10,7 @@ do_install()
     msg ":: Installing ${COMPONENT} ... "
     local packages=""
     case "${DISTRIB}:${ARCH}:${SUITE}" in
-    debian:*|ubuntu:*|kalilinux:*)
+    debian:*|ubuntu:*|kali:*)
         packages="libasound2-plugins"
         apt_install ${packages}
     ;;

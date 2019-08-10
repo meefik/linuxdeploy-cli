@@ -11,7 +11,7 @@ do_install()
     msg ":: Installing ${COMPONENT} ... "
     local packages=""
     case "${DISTRIB}:${ARCH}:${SUITE}" in
-    debian:*|ubuntu:*|kalilinux:*)
+    debian:*|ubuntu:*|kali:*)
         packages="xinit xserver-xorg xserver-xorg-video-fbdev xserver-xorg-input-evdev"
         apt_install ${packages}
     ;;

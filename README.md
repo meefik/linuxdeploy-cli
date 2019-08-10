@@ -15,6 +15,7 @@ A command line application for installing and running GNU/Linux distributions in
 ### Usage
 
 Main help:
+
 ```
 USAGE:
    cli.sh [OPTIONS] COMMAND ...
@@ -54,9 +55,10 @@ COMMANDS:
 ```
 
 Help for the parameters of the main components:
+
 ```
    --distrib="debian"
-     The code name of Linux distribution, which will be installed. Supported "debian", "ubuntu", "kalilinux", "fedora", "centos", "archlinux", "gentoo", "slackware".
+     The code name of Linux distribution, which will be installed. Supported "debian", "ubuntu", "kali", "fedora", "centos", "archlinux", "gentoo", "slackware".
 
    --target-type="file"
      The container deployment type, can specify "file", "directory", "partition", "ram" or "custom".

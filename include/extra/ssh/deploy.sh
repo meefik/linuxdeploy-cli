@@ -9,7 +9,7 @@ do_install()
     msg ":: Installing ${COMPONENT} ... "
     local packages=""
     case "${DISTRIB}:${ARCH}:${SUITE}" in
-    debian:*|ubuntu:*|kalilinux:*)
+    debian:*|ubuntu:*|kali:*)
         packages="openssh-server"
         [ "${METHOD}" = "proot" ] && packages="${packages} fakechroot"
         apt_install ${packages}

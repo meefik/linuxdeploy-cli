@@ -7,7 +7,7 @@ do_install()
     msg ":: Installing ${COMPONENT} ... "
     local packages=""
     case "${DISTRIB}:${ARCH}:${SUITE}" in
-    debian:*|ubuntu:*|kalilinux:*)
+    debian:*|ubuntu:*|kali:*)
         packages="desktop-base x11-xserver-utils xfonts-base xfonts-utils xterm"
         apt_install ${packages}
     ;;

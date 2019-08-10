@@ -15,7 +15,7 @@ do_configure()
         LOCALE="C"
     fi
     case "${DISTRIB}" in
-    debian|ubuntu|kalilinux)
+    debian|ubuntu|kali)
         echo "LANG=${LOCALE}" > "${CHROOT_DIR}/etc/default/locale"
     ;;
     archlinux|centos)
