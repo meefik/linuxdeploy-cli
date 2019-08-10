@@ -2,12 +2,13 @@
 # Linux Deploy Component
 # (c) Anton Skshidlevsky <meefik@gmail.com>, GPLv3
 
-[ -n "${SUITE}" ] || SUITE="14.2"
+[ -n "${SUITE}" ] || SUITE="current"
 
 if [ -z "${ARCH}" ]
 then
     case "$(get_platform)" in
-    x86*) ARCH="x86" ;;
+    x86) ARCH="x86" ;;
+    x86_64) ARCH="x86_64" ;;
     arm*) ARCH="arm" ;;
     esac
 fi
@@ -37,8 +38,9 @@ slackpkg_repository()
         cp "${CHROOT_DIR}/etc/slackpkg/mirrors" "${CHROOT_DIR}/etc/slackpkg/mirrors.bak"
     fi
     case "$(get_platform ${ARCH})" in
-    x86*) local repo_url="${SOURCE_PATH%/}/slackware-${SUITE}/" ;;
     arm*) local repo_url="${SOURCE_PATH%/}/slackwarearm-${SUITE}/" ;;
+    x86) local repo_url="${SOURCE_PATH%/}/slackware-${SUITE}/" ;;
+    x86_64) local repo_url="${SOURCE_PATH%/}/slackware64-${SUITE}/" ;;
     *) return 1 ;;
     esac
     echo "${repo_url}" > "${CHROOT_DIR}/etc/slackpkg/mirrors"
@@ -53,8 +55,9 @@ do_install()
     msg ":: Installing ${COMPONENT} ... "
 
     case "$(get_platform ${ARCH})" in
-    x86*) local repo_url="${SOURCE_PATH%/}/slackware-${SUITE}/slackware" ;;
     arm*) local repo_url="${SOURCE_PATH%/}/slackwarearm-${SUITE}/slackware" ;;
+    x86) local repo_url="${SOURCE_PATH%/}/slackware-${SUITE}/slackware" ;;
+    x86_64) local repo_url="${SOURCE_PATH%/}/slackware64-${SUITE}/slackware" ;;
     esac
 
     msg "URL: ${repo_url}"
@@ -123,10 +126,10 @@ do_help()
 {
 cat <<EOF
    --arch="${ARCH}"
-     Architecture of Linux distribution, supported "arm" and "x86".
+     Architecture of Linux distribution, supported "arm", "x86", "x86_64".
 
    --suite="${SUITE}"
-     Version of Linux distribution, supported version "14.2".
+     Version of Linux distribution, supported version "current".
 
    --source-path="${SOURCE_PATH}"
      Installation source, can specify address of the repository or path to the rootfs archive.
