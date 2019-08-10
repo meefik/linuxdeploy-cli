@@ -34,6 +34,10 @@ do_install()
         packages="openssh"
         slackpkg_install ${packages}
     ;;
+    alpine:*)
+        packages="openssh-server"
+        apk_install ${packages}
+    ;;
     esac
 }
 

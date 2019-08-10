@@ -7,7 +7,7 @@ do_install()
     msg ":: Installing ${COMPONENT} ... "
     local packages=""
     case "${DISTRIB}:${ARCH}:${SUITE}" in
-    debian:*|ubuntu:*|kalilinux:*)
+    debian:*|ubuntu:*|kali:*)
         packages="dbus"
         apt_install ${packages}
     ;;
@@ -26,6 +26,10 @@ do_install()
     gentoo:*)
         packages="sys-apps/dbus"
         emerge_install ${packages}
+    ;;
+    alpine:*)
+        packages="dbus"
+        apk_install ${packages}
     ;;
     esac
 }

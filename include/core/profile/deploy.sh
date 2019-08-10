@@ -14,7 +14,7 @@ do_configure()
     # user profile
     if [ "${USER_NAME}" != "root" ]; then
         chroot_exec -u root groupadd ${USER_NAME}
-        chroot_exec -u root useradd -m -g ${USER_NAME} -s /bin/bash ${USER_NAME}
+        chroot_exec -u root useradd -m -g ${USER_NAME} -s /bin/sh ${USER_NAME}
         chroot_exec -u root usermod -g ${USER_NAME} ${USER_NAME}
     fi
     # set password for user

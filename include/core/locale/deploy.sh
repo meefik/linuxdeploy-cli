@@ -27,6 +27,9 @@ do_configure()
     slackware)
         sed -i "s|^export LANG=.*|export LANG=${LOCALE}|g" "${CHROOT_DIR}/etc/profile.d/lang.sh"
     ;;
+    alpine)
+      echo "LANG=${LOCALE}" > "${CHROOT_DIR}/etc/profile.d/lang.sh"
+    ;;
     esac
     return 0
 }
@@ -35,7 +38,7 @@ do_help()
 {
 cat <<EOF
    --locale="${LOCALE}"
-     Localization, e.g. "ru_RU.UTF-8".
+     Localization, e.g. "en_US.UTF-8".
 
 EOF
 }
