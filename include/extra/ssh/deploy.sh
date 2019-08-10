@@ -44,8 +44,11 @@ do_install()
 do_configure()
 {
     msg ":: Configuring ${COMPONENT} ... "
-    sed -i -E 's/#?PermitRootLogin .*/PermitRootLogin yes/g' "${CHROOT_DIR}/etc/ssh/sshd_config"
-    sed -i -E 's/#?AcceptEnv .*/AcceptEnv LANG/g' "${CHROOT_DIR}/etc/ssh/sshd_config"
+    local sshd_config
+    sshd_config="${CHROOT_DIR}/etc/ssh/sshd_config"
+    sed -i -E 's/#?PasswordAuthentication .*/PasswordAuthentication yes/g' "${sshd_config}"
+    sed -i -E 's/#?PermitRootLogin .*/PermitRootLogin yes/g' "${sshd_config}"
+    sed -i -E 's/#?AcceptEnv .*/AcceptEnv LANG/g' "${sshd_config}"
     return 0
 }
 
