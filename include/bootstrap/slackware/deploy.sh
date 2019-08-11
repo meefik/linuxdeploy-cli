@@ -2,7 +2,7 @@
 # Linux Deploy Component
 # (c) Anton Skshidlevsky <meefik@gmail.com>, GPLv3
 
-[ -n "${SUITE}" ] || SUITE="current"
+[ -n "${SUITE}" ] || SUITE="14.2"
 
 if [ -z "${ARCH}" ]
 then
@@ -37,10 +37,11 @@ slackpkg_repository()
     if [ -e "${CHROOT_DIR}/etc/slackpkg/mirrors" ]; then
         cp "${CHROOT_DIR}/etc/slackpkg/mirrors" "${CHROOT_DIR}/etc/slackpkg/mirrors.bak"
     fi
+    local repo_url
     case "$(get_platform ${ARCH})" in
-    arm*) local repo_url="${SOURCE_PATH%/}/slackwarearm-${SUITE}/" ;;
-    x86) local repo_url="${SOURCE_PATH%/}/slackware-${SUITE}/" ;;
-    x86_64) local repo_url="${SOURCE_PATH%/}/slackware64-${SUITE}/" ;;
+    arm*) repo_url="${SOURCE_PATH%/}/slackwarearm-${SUITE}/" ;;
+    x86) repo_url="${SOURCE_PATH%/}/slackware-${SUITE}/" ;;
+    x86_64) repo_url="${SOURCE_PATH%/}/slackware64-${SUITE}/" ;;
     *) return 1 ;;
     esac
     echo "${repo_url}" > "${CHROOT_DIR}/etc/slackpkg/mirrors"
@@ -54,16 +55,15 @@ do_install()
 
     msg ":: Installing ${COMPONENT} ... "
 
+    local repo_url
     case "$(get_platform ${ARCH})" in
-    arm*) local repo_url="${SOURCE_PATH%/}/slackwarearm-${SUITE}/slackware" ;;
-    x86) local repo_url="${SOURCE_PATH%/}/slackware-${SUITE}/slackware" ;;
-    x86_64) local repo_url="${SOURCE_PATH%/}/slackware64-${SUITE}/slackware" ;;
+    arm*) repo_url="${SOURCE_PATH%/}/slackwarearm-${SUITE}/slackware" ;;
+    x86) repo_url="${SOURCE_PATH%/}/slackware-${SUITE}/slackware" ;;
+    x86_64) repo_url="${SOURCE_PATH%/}/slackware64-${SUITE}/slackware64" ;;
     esac
 
-    msg "URL: ${repo_url}"
-
     local cache_dir="${CHROOT_DIR}/tmp"
-    local extra_packages="l/glibc l/glibc-i18n l/libtermcap l/ncurses ap/diffutils ap/groff ap/man ap/nano ap/slackpkg ap/sudo n/gnupg n/wget"
+    local extra_packages="l/glibc l/glibc-i18n l/libtermcap l/ncurses ap/diffutils ap/groff ap/man ap/slackpkg ap/sudo n/gnupg n/wget"
 
     msg -n "Preparing for deployment ... "
     (set -e
@@ -129,7 +129,7 @@ cat <<EOF
      Architecture of Linux distribution, supported "arm", "x86", "x86_64".
 
    --suite="${SUITE}"
-     Version of Linux distribution, supported version "current".
+     Version of Linux distribution, supported version "14.2".
 
    --source-path="${SOURCE_PATH}"
      Installation source, can specify address of the repository or path to the rootfs archive.
