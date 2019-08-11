@@ -6,7 +6,7 @@
 #
 ################################################################################
 
-VERSION="2.3.0"
+VERSION="2.4.0"
 
 ################################################################################
 # Common
@@ -815,6 +815,17 @@ rootfs_import()
     container_mounted || container_mount root || return 1
 
     case "${rootfs_file}" in
+    *tar)
+        msg -n "Importing rootfs from tar archive ... "
+        if [ -e "${rootfs_file}" ]; then
+            tar xf "${rootfs_file}" -C "${CHROOT_DIR}"
+        elif [ -z "${rootfs_file##http*}" ]; then
+            wget -q -O - "${rootfs_file}" | tar x -C "${CHROOT_DIR}"
+        else
+            msg "fail"; return 1
+        fi
+        is_ok "fail" "done" || return 1
+    ;;
     *gz)
         msg -n "Importing rootfs from tar.gz archive ... "
         if [ -e "${rootfs_file}" ]; then
@@ -849,7 +860,7 @@ rootfs_import()
         is_ok "fail" "done" || return 1
     ;;
     *)
-        msg "Incorrect filename, supported only gz, bz2 or xz archives."
+        msg "Incorrect filename, supported only tar, tar.gz, tar.bz2 or tar.xz archives."
         return 1
     ;;
     esac
