@@ -3,16 +3,15 @@
 # (c) Anton Skshidlevsky <meefik@gmail.com>, GPLv3
 
 [ -n "${LOCALE}" ] || LOCALE="${LANG}"
+[ -n "${LOCALE}" ] || LOCALE="C"
 
 do_configure()
 {
     msg ":: Configuring ${COMPONENT} ... "
-    if [ -n "${LOCALE}" -a "${LOCALE}" != "C" -a "${LOCALE}" != "POSIX" ]; then
+    if $(echo ${LOCALE} | grep -q '\.'); then
         local inputfile=$(echo ${LOCALE} | awk -F. '{print $1}')
         local charmapfile=$(echo ${LOCALE} | awk -F. '{print $2}')
         chroot_exec -u root localedef -i ${inputfile} -c -f ${charmapfile} ${LOCALE}
-    else
-        LOCALE="C"
     fi
     case "${DISTRIB}" in
     debian|ubuntu|kali)

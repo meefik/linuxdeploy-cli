@@ -31,9 +31,10 @@ yum_repository()
 {
     find "${CHROOT_DIR}/etc/yum.repos.d/" -name '*.repo' | while read f; do sed -i 's/^enabled=.*/enabled=0/g' "${f}"; done
     local repo_file="${CHROOT_DIR}/etc/yum.repos.d/fedora-${SUITE}-${ARCH}.repo"
+    local repo_url
     if [ "${ARCH}" = "i386" ]
-    then local repo_url="${SOURCE_PATH%/}/fedora-secondary/releases/${SUITE}/Everything/${ARCH}/os"
-    else local repo_url="${SOURCE_PATH%/}/fedora/linux/releases/${SUITE}/Everything/${ARCH}/os"
+    then repo_url="${SOURCE_PATH%/}/fedora-secondary/releases/${SUITE}/Everything/${ARCH}/os"
+    else repo_url="${SOURCE_PATH%/}/fedora/linux/releases/${SUITE}/Everything/${ARCH}/os"
     fi
     echo "[fedora-${SUITE}-${ARCH}]" > "${repo_file}"
     echo "name=Fedora ${SUITE} - ${ARCH}" >> "${repo_file}"
@@ -53,12 +54,11 @@ do_install()
 
     local base_packages="audit-libs basesystem bash bash-completion bzip2-libs ca-certificates chkconfig coreutils cpio cracklib crypto-policies cryptsetup-libs curl cyrus-sasl-lib dbus dbus-libs device-mapper-libs dnf dnf-conf dnf-plugins-core dnf-yum elfutils-libelf elfutils-libs expat fedora-gpg-keys fedora-release fedora-repos file-libs filesystem gawk gdbm glib2 glibc glibc-common gmp gnupg2 gnutls gobject-introspection gpgme grep gzip info iptables-libs json-c keyutils-libs kmod-libs krb5-libs libacl libarchive libargon2 libassuan libattr libblkid libcap libcap-ng libcom_err libcomps libcurl libdb libdb-utils libdnf libffi libgcc libgcrypt libgpg-error libidn2 libmetalink libmodulemd libmount libnghttp2 libnsl2 libpcap libpsl libpwquality librepo libreport-filesystem libseccomp libselinux libsemanage libsepol libsigsegv libsmartcols libsolv libssh libtasn1 libtirpc libunistring libutempter libuuid libverto libxcrypt libxml2 libyaml libzstd lua-libs lz4-libs mpfr ncurses ncurses-base ncurses-libs nettle nspr nss nss-softokn nss-softokn-freebl nss-sysinit nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pcre2 popt python3 python3-dnf python3-dnf-plugins-core python3-gobject-base python3-gpg python3-hawkey python3-iniparse python3-libcomps python3-librepo python3-libs python3-pip python3-rpm python3-setuptools python3-six python3-smartcols qrencode-libs readline rootfiles rpm rpm-build-libs rpm-libs rpm-plugin-selinux sed setup shadow-utils sqlite-libs sudo systemd systemd-libs tzdata util-linux vim-minimal which xz-libs zlib"
 
+    local repo_url
     if [ "${ARCH}" = "i386" ]
-    then local repo_url="${SOURCE_PATH%/}/fedora-secondary/releases/${SUITE}/Everything/${ARCH}/os"
-    else local repo_url="${SOURCE_PATH%/}/fedora/linux/releases/${SUITE}/Everything/${ARCH}/os"
+    then repo_url="${SOURCE_PATH%/}/fedora-secondary/releases/${SUITE}/Everything/${ARCH}/os"
+    else repo_url="${SOURCE_PATH%/}/fedora/linux/releases/${SUITE}/Everything/${ARCH}/os"
     fi
-
-    msg "URL: ${repo_url}"
 
     msg -n "Preparing for deployment ... "
     tar xzf "${COMPONENT_DIR}/filesystem.tgz" -C "${CHROOT_DIR}"
