@@ -13,7 +13,7 @@ do
     tgz_file="${EXTERNAL_STORAGE}/${cfg_name}.tgz"
     [ ! -e "${tgz_file}" ] || continue
     (set -e
-    ./cli.sh -d -p "${cfg_name}" deploy
+    ./cli.sh -d -p "${cfg_name}" deploy --source-path=""
     ./cli.sh -d -p "${cfg_name}" export "${tgz_file}"
     ./cli.sh -d -p "${cfg_name}" umount
     exit 0)

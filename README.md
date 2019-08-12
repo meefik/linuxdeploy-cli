@@ -33,7 +33,7 @@ COMMANDS:
       -x - dump of the current configuration
       -l - list of dependencies for the specified or are connected components
       -a - list of all components without check compatibility
-   deploy [...] [-n NAME] [NAME ...] - install the distribution and included components
+   deploy [...] [PARAMETERS] [-n NAME] [NAME ...] - install the distribution and included components
       -m - mount the container before deployment
       -i - install without configure
       -c - configure without install
