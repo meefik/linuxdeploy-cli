@@ -26,10 +26,6 @@ do_install()
         packages="openssh-server"
         yum_install ${packages}
     ;;
-    gentoo:*)
-        packages="net-misc/openssh"
-        emerge_install ${packages}
-    ;;
     slackware:*)
         packages="openssh"
         slackpkg_install ${packages}

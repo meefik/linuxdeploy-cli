@@ -27,10 +27,6 @@ do_install()
         packages="xorg-x11-xinit xorg-x11-server-Xorg xorg-x11-drv-fbdev xorg-x11-drv-evdev"
         yum_install ${packages}
     ;;
-    gentoo:*)
-        packages="xinit xorg-server"
-        emerge_install ${packages}
-    ;;
     esac
 }
 
@@ -60,22 +56,6 @@ do_configure()
     if [ -n "${FB_INPUT}" ]; then
         sed -i "s|Option.*FB_INPUT|Option \"Device\" \"${FB_INPUT}\" # FB_INPUT|g" "${xorg_file}"
     fi
-    # specific configuration
-    case "${DISTRIB}" in
-    gentoo)
-        # set Xorg make configuration
-        if $(grep -q '^INPUT_DEVICES=' "${CHROOT_DIR}/etc/portage/make.conf"); then
-            sed -i 's|^\(INPUT_DEVICES=\).*|\1"evdev"|g' "${CHROOT_DIR}/etc/portage/make.conf"
-        else
-            echo 'INPUT_DEVICES="evdev"' >> "${CHROOT_DIR}/etc/portage/make.conf"
-        fi
-        if $(grep -q '^VIDEO_CARDS=' "${CHROOT_DIR}/etc/portage/make.conf"); then
-            sed -i 's|^\(VIDEO_CARDS=\).*|\1"fbdev"|g' "${CHROOT_DIR}/etc/portage/make.conf"
-        else
-            echo 'VIDEO_CARDS="fbdev"' >> "${CHROOT_DIR}/etc/portage/make.conf"
-        fi
-    ;;
-    esac
     return 0
 }
 

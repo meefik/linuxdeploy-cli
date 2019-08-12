@@ -30,17 +30,6 @@ do_install()
         packages="tigervnc-server"
         yum_install ${packages}
     ;;
-    gentoo:*)
-        # set server USE flag for tightvnc
-        if ! $(grep -q '^net-misc/tightvnc' "${CHROOT_DIR}/etc/portage/package.use"); then
-            echo "net-misc/tightvnc server" >> "${CHROOT_DIR}/etc/portage/package.use"
-        fi
-        if ! $(grep -q '^net-misc/tightvnc.*server' "${CHROOT_DIR}/etc/portage/package.use"); then
-            sed -i "s|^\(net-misc/tightvnc.*\)|\1 server|g" "${CHROOT_DIR}/etc/portage/package.use"
-        fi
-        packages="tightvnc"
-        emerge_install ${packages}
-    ;;
     esac
 }
 

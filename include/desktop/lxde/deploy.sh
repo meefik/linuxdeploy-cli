@@ -19,10 +19,6 @@ do_install()
         packages="xorg-x11-server-utils xorg-x11-fonts-misc dejavu-* @lxde-desktop-environment"
         dnf_install ${packages}
     ;;
-    gentoo:*)
-        packages="x11-apps/xauth x11-themes/gtk-engines lxde-base/lxde-meta"
-        emerge_install ${packages}
-    ;;
     esac
 }
 

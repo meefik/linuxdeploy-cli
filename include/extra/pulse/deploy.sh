@@ -26,10 +26,6 @@ do_install()
         packages="alsa-plugins-pulseaudio"
         yum_install ${packages}
     ;;
-    gentoo:*)
-        packages="media-plugins/alsa-plugins"
-        emerge_install ${packages}
-    ;;
     esac
 }
 

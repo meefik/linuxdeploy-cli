@@ -58,7 +58,7 @@ Help for the parameters of the main components:
 
 ```
    --distrib="debian"
-     The code name of Linux distribution, which will be installed. Supported "debian", "ubuntu", "kali", "fedora", "centos", "archlinux", "gentoo", "slackware".
+     The code name of Linux distribution, which will be installed. Supported "debian", "ubuntu", "kali", "fedora", "centos", "archlinux", "slackware", "apline".
 
    --target-type="file"
      The container deployment type, can specify "file", "directory", "partition", "ram" or "custom".

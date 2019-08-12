@@ -19,10 +19,6 @@ do_install()
         packages="xorg-x11-server-utils xorg-x11-fonts-misc dejavu-* @mate-desktop-environment"
         dnf_install ${packages}
     ;;
-    gentoo:*)
-        packages="x11-apps/xauth mate-base/mate"
-        emerge_install ${packages}
-    ;;
     esac
 }
 

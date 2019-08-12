@@ -68,7 +68,7 @@ do_install()
     is_ok "fail" "done" || return 1
 
     msg -n "Retrieving packages list ... "
-    local core_files=$(wget -q -O - "${repo_url}/core.db.tar.gz" | tar xOz | grep '.pkg.tar.xz$' | grep -v -e '^linux-' -e '^grub-' -e '^efibootmgr-' -e '^gcc-' -e '^openssh-' | sort)
+    local core_files=$(wget -q -O - "${repo_url}/core.db.tar.gz" | tar xOz | grep '.pkg.tar.xz$' | grep -v -e '^linux-' -e '^grub-' -e '^efibootmgr-' -e '^openssh-' | sort)
     is_ok "fail" "done" || return 1
 
     msg "Retrieving core packages: "

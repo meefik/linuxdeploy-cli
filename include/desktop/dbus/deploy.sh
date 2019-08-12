@@ -23,14 +23,6 @@ do_install()
         packages="dbus"
         yum_install ${packages}
     ;;
-    gentoo:*)
-        packages="sys-apps/dbus"
-        emerge_install ${packages}
-    ;;
-    alpine:*)
-        packages="dbus"
-        apk_install ${packages}
-    ;;
     esac
 }
 
