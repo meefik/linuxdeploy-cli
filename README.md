@@ -76,10 +76,13 @@ Help for the parameters of the main components:
      Architecture of Linux distribution, supported "armel", "armhf", "arm64", "i386" and "amd64".
 
    --suite="stretch"
-     Version of Linux distribution, supported versions "wheezy", "jessie" and "stretch" (also can be used "stable", "testing" and "unstable").
+     Version of Linux distribution, supported versions "jessie", "stretch" and "buster" (also can be used "stable", "testing", "unstable" or "oldstable").
 
    --source-path="http://ftp.debian.org/debian/"
      Installation source, can specify address of the repository or path to the rootfs archive.
+
+   --extra-packages=""
+     List of optional installation packages, separated by spaces.
 
    --method="chroot"
      Containerization method "chroot" or "proot".
@@ -99,8 +102,8 @@ Help for the parameters of the main components:
    --net-trigger=""
      Path to a script inside the container to process changes the network.
 
-   --locale="en_US.UTF-8"
-     Localization, e.g. "ru_RU.UTF-8".
+   --locale="C"
+     Localization, e.g. "en_US.UTF-8".
 
    --user-name="android"
      Username that will be created in the container.
@@ -108,7 +111,7 @@ Help for the parameters of the main components:
    --user-password="changeme"
      Password will be assigned to the specified user.
 
-   --privileged-users="root messagebus"
+   --privileged-users="android messagebus"
      A list of users separated by a space to be added to Android groups.
 
 ```
@@ -116,4 +119,4 @@ Help for the parameters of the main components:
 ### Links
 
 - Source code: https://github.com/meefik/linuxdeploy-cli
-- Donations: http://meefik.github.io/donate
+- Donations: https://meefik.github.io/donate
