@@ -52,7 +52,7 @@ do_install()
 
     msg ":: Installing ${COMPONENT} ... "
 
-    local base_packages="audit-libs basesystem bash bash-completion bzip2-libs ca-certificates chkconfig coreutils cpio cracklib crypto-policies cryptsetup-libs curl cyrus-sasl-lib dbus dbus-libs device-mapper-libs dnf dnf-conf dnf-plugins-core dnf-yum elfutils-libelf elfutils-libs expat fedora-gpg-keys fedora-release fedora-repos file-libs filesystem gawk gdbm glib2 glibc glibc-common gmp gnupg2 gnutls gobject-introspection gpgme grep gzip info iptables-libs json-c keyutils-libs kmod-libs krb5-libs libacl libarchive libargon2 libassuan libattr libblkid libcap libcap-ng libcom_err libcomps libcurl libdb libdb-utils libdnf libffi libgcc libgcrypt libgpg-error libidn2 libmetalink libmodulemd libmount libnghttp2 libnsl2 libpcap libpsl libpwquality librepo libreport-filesystem libseccomp libselinux libsemanage libsepol libsigsegv libsmartcols libsolv libssh libtasn1 libtirpc libunistring libutempter libuuid libverto libxcrypt libxml2 libyaml libzstd lua-libs lz4-libs mpfr ncurses ncurses-base ncurses-libs nettle nspr nss nss-softokn nss-softokn-freebl nss-sysinit nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pcre2 popt python3 python3-dnf python3-dnf-plugins-core python3-gobject-base python3-gpg python3-hawkey python3-iniparse python3-libcomps python3-librepo python3-libs python3-pip python3-rpm python3-setuptools python3-six python3-smartcols qrencode-libs readline rootfiles rpm rpm-build-libs rpm-libs rpm-plugin-selinux sed setup shadow-utils sqlite-libs sudo systemd systemd-libs tzdata util-linux vim-minimal which xz-libs zlib"
+    local core_packages="audit-libs basesystem bash bash-completion bzip2-libs ca-certificates chkconfig coreutils cpio cracklib crypto-policies cryptsetup-libs curl cyrus-sasl-lib dbus dbus-libs device-mapper-libs dnf dnf-conf dnf-plugins-core dnf-yum elfutils-libelf elfutils-libs expat fedora-gpg-keys fedora-release fedora-repos file-libs filesystem gawk gdbm glib2 glibc glibc-common gmp gnupg2 gnutls gobject-introspection gpgme grep gzip info iptables-libs json-c keyutils-libs kmod-libs krb5-libs libacl libarchive libargon2 libassuan libattr libblkid libcap libcap-ng libcom_err libcomps libcurl libdb libdb-utils libdnf libffi libgcc libgcrypt libgpg-error libidn2 libmetalink libmodulemd libmount libnghttp2 libnsl2 libpcap libpsl libpwquality librepo libreport-filesystem libseccomp libselinux libsemanage libsepol libsigsegv libsmartcols libsolv libssh libtasn1 libtirpc libunistring libutempter libuuid libverto libxcrypt libxml2 libyaml libzstd lua-libs lz4-libs mpfr ncurses ncurses-base ncurses-libs nettle nspr nss nss-softokn nss-softokn-freebl nss-sysinit nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pcre2 popt python3 python3-dnf python3-dnf-plugins-core python3-gobject-base python3-gpg python3-hawkey python3-iniparse python3-libcomps python3-librepo python3-libs python3-pip python3-rpm python3-setuptools python3-six python3-smartcols qrencode-libs readline rootfiles rpm rpm-build-libs rpm-libs rpm-plugin-selinux sed setup shadow-utils sqlite-libs sudo systemd systemd-libs tzdata util-linux vim-minimal which xz-libs zlib"
 
     local repo_url
     if [ "${ARCH}" = "i386" ]
@@ -73,7 +73,7 @@ do_install()
     exit 0)
     is_ok "fail" "done" || return 1
 
-    msg "Retrieving base packages: "
+    msg "Retrieving packages: "
     local package i pkg_url pkg_file pkg_arch
     case "${ARCH}" in
     i386) pkg_arch="-e i686 -e noarch" ;;
@@ -81,7 +81,7 @@ do_install()
     armhfp) pkg_arch="-e armv7hl -e noarch" ;;
     aarch64) pkg_arch="-e aarch64 -e noarch" ;;
     esac
-    for package in ${base_packages}
+    for package in ${core_packages}
     do
         msg -n "${package} ... "
         pkg_url=$(grep -e "^.*/${package}-[0-9r][0-9\.\-].*rpm$" "${pkg_list}" | grep -m1 ${pkg_arch})
@@ -101,7 +101,7 @@ do_install()
 
     component_exec core/emulator
 
-    msg "Installing base packages ... "
+    msg "Installing packages ... "
     chroot_exec /bin/rpm -i --force --nosignature --nodeps /tmp/*.rpm
     is_ok || return 1
 
@@ -119,6 +119,12 @@ do_install()
     dnf_install @minimal-environment --exclude filesystem,openssh-server
     is_ok || return 1
 
+    if [ -n "${EXTRA_PACKAGES}" ]; then
+      msg "Installing extra packages: "
+      dnf_install ${EXTRA_PACKAGES}
+      is_ok || return 1
+    fi
+
     return 0
 }
 
@@ -133,6 +139,9 @@ cat <<EOF
 
    --source-path="${SOURCE_PATH}"
      Installation source, can specify address of the repository or path to the rootfs archive.
+
+   --extra-packages="${EXTRA_PACKAGES}"
+     List of optional installation packages, separated by spaces.
 
 EOF
 }

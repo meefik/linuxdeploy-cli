@@ -71,7 +71,7 @@ do_install()
     local core_files=$(wget -q -O - "${repo_url}/core.db.tar.gz" | tar xOz | grep '.pkg.tar.xz$' | grep -v -e '^linux-' -e '^grub-' -e '^efibootmgr-' -e '^openssh-' | sort)
     is_ok "fail" "done" || return 1
 
-    msg "Retrieving core packages: "
+    msg "Retrieving packages: "
     local fs_file=$(echo ${core_files} | grep -m1 '^filesystem-')
     for pkg_file in ${fs_file} ${core_files}
     do
@@ -94,8 +94,8 @@ do_install()
     pacman_repository
     is_ok "fail" "done"
 
-    msg "Installing base packages: "
-    pacman_install base $(echo ${core_files} | sed 's/-[0-9].*$//')
+    msg "Installing packages: "
+    pacman_install base $(echo ${core_files} | sed 's/-[0-9].*$//') ${EXTRA_PACKAGES}
     is_ok || return 1
 
     msg -n "Clearing cache ... "
@@ -113,6 +113,9 @@ cat <<EOF
 
    --source-path="${SOURCE_PATH}"
      Installation source, can specify address of the repository or path to the rootfs archive.
+
+   --extra-packages="${EXTRA_PACKAGES}"
+     List of optional installation packages, separated by spaces.
 
 EOF
 }

@@ -63,7 +63,7 @@ do_install()
     esac
 
     local cache_dir="${CHROOT_DIR}/tmp"
-    local extra_packages="l/glibc l/glibc-i18n l/libtermcap l/ncurses ap/diffutils ap/groff ap/man ap/slackpkg ap/sudo n/gnupg n/wget"
+    local base_packages="l/glibc l/glibc-i18n l/libtermcap l/ncurses ap/diffutils ap/groff ap/man ap/slackpkg ap/sudo n/gnupg n/wget"
 
     msg -n "Preparing for deployment ... "
     (set -e
@@ -75,14 +75,14 @@ do_install()
     is_ok "fail" "done" || return 1
 
     msg -n "Retrieving packages list ... "
-    local base_packages=$(wget -q -O - "${repo_url}/a/tagfile" | grep -v -e 'kernel' -e 'efibootmgr' -e 'lilo' -e 'grub' -e 'devs' | awk -F: '{if ($1!="") print "a/"$1}')
+    local core_packages=$(wget -q -O - "${repo_url}/a/tagfile" | grep -v -e 'kernel' -e 'efibootmgr' -e 'lilo' -e 'grub' -e 'devs' | awk -F: '{if ($1!="") print "a/"$1}')
     local pkg_list="${cache_dir}/packages.list"
     wget -q -O - "${repo_url}/FILE_LIST" | grep -o -e '/.*\.\tgz$' -e '/.*\.\txz$' > "${pkg_list}"
     is_ok "fail" "done" || return 1
 
-    msg "Retrieving base packages: "
+    msg "Retrieving and installing packages: "
     local package i pkg_url pkg_file
-    for package in ${base_packages} ${extra_packages}
+    for package in ${core_packages} ${base_packages} ${EXTRA_PACKAGES}
     do
         msg -n "${package} ... "
         pkg_url=$(grep -m1 -e "/${package}\-" "${pkg_list}")
@@ -133,6 +133,9 @@ cat <<EOF
 
    --source-path="${SOURCE_PATH}"
      Installation source, can specify address of the repository or path to the rootfs archive.
+
+   --extra-packages="${EXTRA_PACKAGES}"
+     List of optional installation packages, separated by spaces.
 
 EOF
 }

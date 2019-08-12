@@ -52,5 +52,8 @@ cat <<EOF
    --source-path="${SOURCE_PATH}"
      Installation source, can specify address of the repository or path to the rootfs archive.
 
+   --extra-packages="${EXTRA_PACKAGES}"
+     List of optional installation packages, separated by spaces.
+
 EOF
 }

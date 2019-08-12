@@ -14,7 +14,7 @@ then
     esac
 fi
 
-  [ -n "${SOURCE_PATH}" ] || SOURCE_PATH="http://dl-cdn.alpinelinux.org/alpine/"
+[ -n "${SOURCE_PATH}" ] || SOURCE_PATH="http://dl-cdn.alpinelinux.org/alpine/"
 
 apk_install()
 {
@@ -41,8 +41,8 @@ do_install()
 
     component_exec core/emulator core/mnt core/net
 
-    msg "Installing extra packages: "
-    apk_install shadow sudo tzdata
+    msg "Installing packages: "
+    apk_install shadow sudo tzdata ${EXTRA_PACKAGES}
     is_ok || return 1
 
     return 0
@@ -59,6 +59,9 @@ cat <<EOF
 
    --source-path="${SOURCE_PATH}"
      Installation source, can specify address of the repository or path to the rootfs archive.
+
+   --extra-packages="${EXTRA_PACKAGES}"
+     List of optional installation packages, separated by spaces.
 
 EOF
 }

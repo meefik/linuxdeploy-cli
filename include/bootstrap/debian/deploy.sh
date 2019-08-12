@@ -54,6 +54,9 @@ do_install()
     #selinux_support && include_packages="${include_packages},selinux-basics"
 
     (set -e
+        if [ -n "${EXTRA_PACKAGES}" ]; then
+          include_packages="${include_packages},$(echo ${EXTRA_PACKAGES} | tr ' ' ',')"
+        fi
         DEBOOTSTRAP_DIR="$(component_dir bootstrap/debian)/debootstrap"
         . "${DEBOOTSTRAP_DIR}/debootstrap" --no-check-gpg --foreign --extractor=ar --arch="${ARCH}" --exclude="${exclude_packages}" --include="${include_packages}" "${SUITE}" "${CHROOT_DIR}" "${SOURCE_PATH}"
     exit 0)
@@ -83,6 +86,9 @@ cat <<EOF
 
    --source-path="${SOURCE_PATH}"
      Installation source, can specify address of the repository or path to the rootfs archive.
+
+   --extra-packages="${EXTRA_PACKAGES}"
+     List of optional installation packages, separated by spaces.
 
 EOF
 }
