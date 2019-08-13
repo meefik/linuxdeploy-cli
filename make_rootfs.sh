@@ -11,6 +11,7 @@ find "${CONFIG_DIR}" -type f -name "*.conf" | sort | while read cfg_file
 do
     cfg_name="$(basename ${cfg_file%.*})"
     tgz_file="${EXTERNAL_STORAGE}/${cfg_name}.tgz"
+    echo "### deploy: ${cfg_name}"
     [ ! -e "${tgz_file}" ] || continue
     (set -e
     ./cli.sh -d -p "${cfg_name}" deploy --source-path=""
