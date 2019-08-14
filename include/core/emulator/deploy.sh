@@ -38,6 +38,14 @@ do_start()
             msg "skip"
         fi
     ;;
+    qemu-x86_64*)
+        if [ ! -e "/proc/sys/fs/binfmt_misc/qemu-x86_64" ]; then
+            echo ":qemu-x86_64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x3e\x00:\xff\xff\xff\xff\xff\xfe\xfe\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:${target_path}:" > "/proc/sys/fs/binfmt_misc/register"
+            is_ok "fail" "done"
+        else
+            msg "skip"
+        fi
+    ;;
     qemu-arm*)
         if [ ! -e "/proc/sys/fs/binfmt_misc/qemu-arm" ]; then
             echo ":qemu-arm:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:${target_path}:" > "/proc/sys/fs/binfmt_misc/register"
@@ -46,9 +54,9 @@ do_start()
             msg "skip"
         fi
     ;;
-    qemu-mipsel*)
-        if [ ! -e "/proc/sys/fs/binfmt_misc/qemu-mipsel" ]; then
-            echo ":qemu-mipsel:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x08\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:${target_path}:" > "/proc/sys/fs/binfmt_misc/register"
+    qemu-aarch64*)
+        if [ ! -e "/proc/sys/fs/binfmt_misc/qemu-aarch64" ]; then
+            echo ":qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:${target_path}:" > "/proc/sys/fs/binfmt_misc/register"
             is_ok "fail" "done"
         else
             msg "skip"
