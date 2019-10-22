@@ -2,7 +2,7 @@
 # Linux Deploy Component
 # (c) Anton Skshidlevsky <meefik@gmail.com>, GPLv3
 
-[ -n "${SUITE}" ] || SUITE="28"
+[ -n "${SUITE}" ] || SUITE="30"
 
 if [ -z "${ARCH}" ]
 then
@@ -52,7 +52,7 @@ do_install()
 
     msg ":: Installing ${COMPONENT} ... "
 
-    local core_packages="audit-libs basesystem bash bash-completion bzip2-libs ca-certificates chkconfig coreutils cpio cracklib crypto-policies cryptsetup-libs curl cyrus-sasl-lib dbus dbus-libs device-mapper-libs dnf dnf-conf dnf-plugins-core dnf-yum elfutils-libelf elfutils-libs expat fedora-gpg-keys fedora-release fedora-repos file-libs filesystem gawk gdbm glib2 glibc glibc-common gmp gnupg2 gnutls gobject-introspection gpgme grep gzip info iptables-libs json-c keyutils-libs kmod-libs krb5-libs libacl libarchive libargon2 libassuan libattr libblkid libcap libcap-ng libcom_err libcomps libcurl libdb libdb-utils libdnf libffi libgcc libgcrypt libgpg-error libidn2 libmetalink libmodulemd libmount libnghttp2 libnsl2 libpcap libpsl libpwquality librepo libreport-filesystem libseccomp libselinux libsemanage libsepol libsigsegv libsmartcols libsolv libssh libtasn1 libtirpc libunistring libutempter libuuid libverto libxcrypt libxml2 libyaml libzstd lua-libs lz4-libs mpfr ncurses ncurses-base ncurses-libs nettle nspr nss nss-softokn nss-softokn-freebl nss-sysinit nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pcre2 popt python3 python3-dnf python3-dnf-plugins-core python3-gobject-base python3-gpg python3-hawkey python3-iniparse python3-libcomps python3-librepo python3-libs python3-pip python3-rpm python3-setuptools python3-six python3-smartcols qrencode-libs readline rootfiles rpm rpm-build-libs rpm-libs rpm-plugin-selinux sed setup shadow-utils sqlite-libs sudo systemd systemd-libs tzdata util-linux vim-minimal which xz-libs zlib"
+    local core_packages="acl alternatives audit-libs basesystem bash brotli bzip2-libs ca-certificates coreutils cracklib crypto-policies cryptsetup-libs curl cyrus-sasl-lib dbus dbus-tools dbus-broker dbus-common device-mapper device-mapper-libs dnf dnf-data dnf-yum elfutils-default-yama-scope elfutils-libelf elfutils-libs expat fedora-gpg-keys fedora-release fedora-release-container fedora-repos file-libs filesystem gawk gdbm-libs generic-release generic-release-common glib2 glibc glibc-common glibc-minimal-langpack gmp gnupg2 gnutls gpgme grep gzip ima-evm-utils iptables-libs json-c keyutils-libs kmod-libs krb5-libs libacl libarchive libargon2 libassuan libattr libblkid libcap libcap-ng libcom_err libcomps libcurl libcurl-minimal libdb libdb-utils libdnf libfdisk libffi libgcc libgcrypt libgomp libgpg-error libidn2 libksba libmetalink libmodulemd libmodulemd1 libmount libnghttp2 libnsl2 libpcap libpsl libpwquality librepo libreport-filesystem libseccomp libselinux libsemanage libsepol libsigsegv libsmartcols libsolv libssh libsss_idmap libsss_nss_idmap libstdc++ libtasn1 libtirpc libunistring libusbx libutempter libuuid libverto libxcrypt libxml2 libyaml libzstd lua-libs lz4-libs mpfr ncurses ncurses-base ncurses-libs nettle npth openldap openssl openssl-libs p11-kit p11-kit-trust pam pcre pcre2 popt publicsuffix-list-dafsa python3 python3-dnf python3-gpg python3-hawkey python3-libcomps python3-libdnf python3-libs python3-rpm python-pip-wheel python-setuptools-wheel qrencode-libs readline rootfiles rpm rpm-build-libs rpm-libs rpm-sign-libs sed setup shadow-utils sqlite-libs sssd-client sudo systemd systemd-libs systemd-pam systemd-rpm-macros tss2 tzdata util-linux vim-minimal xz-libs zchunk-libs zlib"
 
     local repo_url
     if [ "${ARCH}" = "i386" ]
@@ -111,12 +111,16 @@ do_install()
 
     component_exec core/mnt core/net
 
-    msg -n "Updating repository ... "
-    yum_repository
-    is_ok "fail" "done"
+    # msg -n "Updating repository ... "
+    # yum_repository
+    # is_ok "fail" "done"
+
+    msg -n "Setting up dnf excludes ... "
+    chroot_exec /bin/echo "\nkernel* dosfstools e2fsprogs fuse-libs gnupg2-smime libss pinentry shared-mime-info trousers xkeyboard-config grubby glibc-langpack-en cracklib-dicts" > /etc/dnf/dnf.conf
+    s_ok "fail" "done"
 
     msg "Installing minimal environment: "
-    dnf_install @minimal-environment --exclude filesystem,openssh-server
+    dnf_install @minimal-environment --exclude=kernel,dosfstools,e2fsprogs,fuse-libs,gnupg2-smime,libss,pinentry,shared-mime-info,trousers,xkeyboard-config,grubby,glibc-langpack-en,cracklib-dicts
     is_ok || return 1
 
     if [ -n "${EXTRA_PACKAGES}" ]; then
@@ -124,6 +128,10 @@ do_install()
       dnf_install ${EXTRA_PACKAGES}
       is_ok || return 1
     fi
+
+    msg -n "Cleaning up dnf cache ... "
+    chroot_exec dnf clean all
+    s_ok "fail" "done"
 
     return 0
 }
