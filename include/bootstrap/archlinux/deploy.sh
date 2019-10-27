@@ -27,7 +27,7 @@ pacman_install()
     [ -n "${packages}" ] || return 1
     (set -e
         #rm -f ${CHROOT_DIR}/var/lib/pacman/db.lck || true
-        chroot_exec -u root pacman -Syq --force --noconfirm ${packages}
+        chroot_exec -u root pacman -Syq --overwrite --noconfirm ${packages}
         rm -f "${CHROOT_DIR}"/var/cache/pacman/pkg/* || true
     exit 0)
     return $?
