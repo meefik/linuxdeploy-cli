@@ -34,7 +34,7 @@ do_stop()
 
     local services=$(ls "${CHROOT_DIR}/etc/rc6.d/" | grep '^K')
     if [ -n "${services}" ]; then
-        msg ":: Starting ${COMPONENT}: "
+        msg ":: Stopping ${COMPONENT}: "
         local item
         for item in ${services}
         do
