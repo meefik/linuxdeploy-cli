@@ -2,6 +2,7 @@
 # Linux Deploy Component
 # (c) Anton Skshidlevsky <meefik@gmail.com>, GPLv3
 
+# 31 doesn't support while rpm2cpio in busybox doesn't support zstd
 [ -n "${SUITE}" ] || SUITE="30"
 
 if [ -z "${ARCH}" ]
@@ -14,36 +15,16 @@ then
     esac
 fi
 
-[ -n "${SOURCE_PATH}" ] || SOURCE_PATH="http://dl.fedoraproject.org/pub/archive/"
+[ -n "${SOURCE_PATH}" ] || SOURCE_PATH="http://192.168.1.10/pub/fedoraproject.org"
 
 dnf_install()
 {
     local packages="$@"
     [ -n "${packages}" ] || return 1
     (set -e
-        chroot_exec -u root dnf --nogpgcheck -y install ${packages}
-        chroot_exec -u root dnf clean packages
+        chroot_exec -u root dnf -y install ${packages}
     exit 0)
     return $?
-}
-
-yum_repository()
-{
-    find "${CHROOT_DIR}/etc/yum.repos.d/" -name '*.repo' | while read f; do sed -i 's/^enabled=.*/enabled=0/g' "${f}"; done
-    local repo_file="${CHROOT_DIR}/etc/yum.repos.d/fedora-${SUITE}-${ARCH}.repo"
-    local repo_url
-    if [ "${ARCH}" = "i386" ]
-    then repo_url="${SOURCE_PATH%/}/fedora-secondary/releases/${SUITE}/Everything/${ARCH}/os"
-    else repo_url="${SOURCE_PATH%/}/fedora/linux/releases/${SUITE}/Everything/${ARCH}/os"
-    fi
-    echo "[fedora-${SUITE}-${ARCH}]" > "${repo_file}"
-    echo "name=Fedora ${SUITE} - ${ARCH}" >> "${repo_file}"
-    echo "failovermethod=priority" >> "${repo_file}"
-    echo "baseurl=${repo_url}" >> "${repo_file}"
-    echo "enabled=1" >> "${repo_file}"
-    echo "metadata_expire=7d" >> "${repo_file}"
-    echo "gpgcheck=0" >> "${repo_file}"
-    chmod 644 "${repo_file}"
 }
 
 do_install()
@@ -52,7 +33,7 @@ do_install()
 
     msg ":: Installing ${COMPONENT} ... "
 
-    local core_packages="acl alternatives audit-libs basesystem bash brotli bzip2-libs ca-certificates coreutils cracklib crypto-policies cryptsetup-libs curl cyrus-sasl-lib dbus dbus-tools dbus-broker dbus-common device-mapper device-mapper-libs dnf dnf-data dnf-yum elfutils-default-yama-scope elfutils-libelf elfutils-libs expat fedora-gpg-keys fedora-release fedora-release-container fedora-repos file-libs filesystem gawk gdbm-libs generic-release generic-release-common glib2 glibc glibc-common glibc-minimal-langpack gmp gnupg2 gnutls gpgme grep gzip ima-evm-utils iptables-libs json-c keyutils-libs kmod-libs krb5-libs libacl libarchive libargon2 libassuan libattr libblkid libcap libcap-ng libcom_err libcomps libcurl libcurl-minimal libdb libdb-utils libdnf libfdisk libffi libgcc libgcrypt libgomp libgpg-error libidn2 libksba libmetalink libmodulemd libmodulemd1 libmount libnghttp2 libnsl2 libpcap libpsl libpwquality librepo libreport-filesystem libseccomp libselinux libsemanage libsepol libsigsegv libsmartcols libsolv libssh libsss_idmap libsss_nss_idmap libstdc++ libtasn1 libtirpc libunistring libusbx libutempter libuuid libverto libxcrypt libxml2 libyaml libzstd lua-libs lz4-libs mpfr ncurses ncurses-base ncurses-libs nettle npth openldap openssl openssl-libs p11-kit p11-kit-trust pam pcre pcre2 popt publicsuffix-list-dafsa python3 python3-dnf python3-gpg python3-hawkey python3-libcomps python3-libdnf python3-libs python3-rpm python-pip-wheel python-setuptools-wheel qrencode-libs readline rootfiles rpm rpm-build-libs rpm-libs rpm-sign-libs sed setup shadow-utils sqlite-libs sssd-client sudo systemd systemd-libs systemd-pam systemd-rpm-macros tss2 tzdata util-linux vim-minimal xz-libs zchunk-libs zlib"
+    local core_packages="acl alternatives audit-libs basesystem bash brotli bzip2-libs ca-certificates coreutils coreutils-common cracklib crypto-policies cryptsetup-libs curl cyrus-sasl-lib dbus dbus-broker dbus-common device-mapper device-mapper-libs dnf dnf-data dnf-yum elfutils-default-yama-scope elfutils-libelf elfutils-libs expat fedora-gpg-keys fedora-release fedora-release-common fedora-repos file-libs filesystem findutils gawk gdbm-libs glib2 glibc glibc-common glibc-minimal-langpack gmp gnupg2 gnutls gpgme grep gzip ima-evm-utils iptables-libs json-c keyutils-libs kmod-libs krb5-libs libacl libarchive libargon2 libassuan libattr libblkid libcap libcap-ng libcom_err libcomps libcurl libdb libdb-utils libdnf libfdisk libffi libgcc libgcrypt libgpg-error libidn2 libksba libmetalink libmodulemd1 libmount libnghttp2 libnsl2 libpcap libpsl libpwquality librepo libreport-filesystem libseccomp libselinux libsemanage libsepol libsigsegv libsmartcols libsolv libssh libsss_idmap libsss_nss_idmap libstdc++ libtasn1 libtirpc libunistring libusbx libutempter libuuid libverto libxcrypt libxml2 libyaml libzstd lua-libs lz4-libs mpfr ncurses ncurses-base ncurses-libs nettle npth openldap openssl-libs p11-kit p11-kit-trust pam pcre pcre2 popt publicsuffix-list-dafsa python3 python3-dnf python3-gpg python3-hawkey python3-libcomps python3-libdnf python3-libs python3-rpm python-pip-wheel python-setuptools-wheel qrencode-libs readline rootfiles rpm rpm-build-libs rpm-libs rpm-sign-libs sed setup shadow-utils sqlite-libs sssd-client sudo systemd systemd-libs systemd-pam systemd-rpm-macros tar tzdata util-linux vim-minimal xz-libs zchunk-libs zlib"
 
     local repo_url
     if [ "${ARCH}" = "i386" ]
@@ -111,27 +92,30 @@ do_install()
 
     component_exec core/mnt core/net
 
-    # msg -n "Updating repository ... "
-    # yum_repository
-    # is_ok "fail" "done"
+    # TODO: Remove this before creating PR
+    msg -n "Replacing urls to local mirror ..."
+    chroot_exec /usr/bin/find /etc/yum.repos.d/ -name "*.repo" -type f -exec /usr/bin/sed -i 's/#baseurl=https\?:\/\/download.fedoraproject.org\/pub/baseurl=http:\/\/192.168.1.10\/pub\/fedoraproject.org/g' {} \;
+    is_ok "fail" "done"
 
-    msg -n "Setting up dnf excludes ... "
-    chroot_exec /bin/echo "\nkernel* dosfstools e2fsprogs fuse-libs gnupg2-smime libss pinentry shared-mime-info trousers xkeyboard-config grubby glibc-langpack-en cracklib-dicts" > /etc/dnf/dnf.conf
-    s_ok "fail" "done"
+    # TODO: Remove this before creating PR
+    msg -n "Disabling metalink ..."
+    chroot_exec /usr/bin/find /etc/yum.repos.d/ -name "*.repo" -type f -exec /usr/bin/sed -i 's/metalink=/#metalink=/g' {} \;
+    is_ok "fail" "done"
 
-    msg "Installing minimal environment: "
-    dnf_install @minimal-environment --exclude=kernel,dosfstools,e2fsprogs,fuse-libs,gnupg2-smime,libss,pinentry,shared-mime-info,trousers,xkeyboard-config,grubby,glibc-langpack-en,cracklib-dicts
-    is_ok || return 1
+    msg -n "Setting dnf excludes ..."
+    echo "exclude=kernel* *-firmware grubby" >> "${CHROOT_DIR}"/etc/dnf/dnf.conf
+    is_ok "fail" "done"
+
+    # TODO: Think about it before creating PR
+    msg -n "Upgrading packages ..."
+    chroot_exec -u root dnf -y upgrade --refresh
+    is_ok "fail" "done"
 
     if [ -n "${EXTRA_PACKAGES}" ]; then
       msg "Installing extra packages: "
       dnf_install ${EXTRA_PACKAGES}
       is_ok || return 1
     fi
-
-    msg -n "Cleaning up dnf cache ... "
-    chroot_exec dnf clean all
-    s_ok "fail" "done"
 
     return 0
 }
