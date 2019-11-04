@@ -2,6 +2,24 @@
 # Linux Deploy Component
 # (c) Anton Skshidlevsky <meefik@gmail.com>, GPLv3
 
+get_qemu()
+{
+    local arch="$1"
+    local qemu=""
+    local host_platform=$(get_platform)
+    local guest_platform=$(get_platform "${arch}")
+    if [ "${host_platform}" != "${guest_platform}" ]; then
+        case "${guest_platform}" in
+        arm) qemu="qemu-arm-static" ;;
+        arm_64) qemu="qemu-aarch64-static" ;;
+        x86) qemu="qemu-i386-static" ;;
+        x86_64) qemu="qemu-x86_64-static" ;;
+        *) qemu="" ;;
+        esac
+    fi
+    echo ${qemu}
+}
+
 [ -n "${EMULATOR}" ] || EMULATOR=$(get_qemu ${ARCH})
 
 do_configure()
@@ -90,6 +108,14 @@ do_stop()
             msg "skip"
         fi
     ;;
+    qemu-x86_64*)
+        if [ -e "/proc/sys/fs/binfmt_misc/qemu-x86_64" ]; then
+            echo -1 > /proc/sys/fs/binfmt_misc/qemu-x86_64
+            is_ok "fail" "done"
+        else
+            msg "skip"
+        fi
+    ;;
     qemu-arm*)
         if [ -e "/proc/sys/fs/binfmt_misc/qemu-arm" ]; then
             echo -1 > /proc/sys/fs/binfmt_misc/qemu-arm
@@ -98,9 +124,9 @@ do_stop()
             msg "skip"
         fi
     ;;
-    qemu-mipsel*)
-        if [ -e "/proc/sys/fs/binfmt_misc/qemu-mipsel" ]; then
-            echo -1 > /proc/sys/fs/binfmt_misc/qemu-mipsel
+    qemu-aarch64*)
+        if [ -e "/proc/sys/fs/binfmt_misc/qemu-aarch64" ]; then
+            echo -1 > /proc/sys/fs/binfmt_misc/qemu-aarch64
             is_ok "fail" "done"
         else
             msg "skip"

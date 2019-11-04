@@ -87,15 +87,15 @@ rootfs_make()
     fi
 
     if [ "${TARGET_TYPE}" = "ram" ]; then
+      if [ ! -e "${TARGET_PATH}" ]; then
+          mkdir "${TARGET_PATH}"
+      fi
         umount "${TARGET_PATH}"
         if [ -z "${DISK_SIZE}" -o "${DISK_SIZE}" -le 0 ]; then
             local ram_free=$(grep ^MemFree /proc/meminfo | awk '{print $2}')
             let DISK_SIZE="${ram_free}/1024"
         fi
         msg -n "Making new disk image (${DISK_SIZE} MB) ... "
-        if [ ! -e "${TARGET_PATH}" ]; then
-            mkdir "${TARGET_PATH}"
-        fi
         mount -t tmpfs -o size="${DISK_SIZE}M" tmpfs "${TARGET_PATH}"
         is_ok "fail" "done" || return 1
     fi

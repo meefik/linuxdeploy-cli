@@ -48,7 +48,6 @@ COMMANDS:
       -m - mount the container before start
    stop [-u] [NAME ...] - stop all included or only specified components
       -u - unmount the container after stop
-   sync URL - synchronize with the operating environment with server
    status [NAME ...] - display the status of the container and components
    help [NAME ...] - show this help or help of components
 

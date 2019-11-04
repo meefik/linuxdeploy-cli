@@ -6,7 +6,7 @@
 #
 ################################################################################
 
-VERSION="2.4.1"
+VERSION="2.5.0"
 
 ################################################################################
 # Common
@@ -55,24 +55,6 @@ get_platform()
         echo "unknown"
     ;;
     esac
-}
-
-get_qemu()
-{
-    local arch="$1"
-    local qemu=""
-    local host_platform=$(get_platform)
-    local guest_platform=$(get_platform "${arch}")
-    if [ "${host_platform}" != "${guest_platform}" ]; then
-        case "${guest_platform}" in
-        arm) qemu="qemu-arm-static" ;;
-        arm_64) qemu="qemu-aarch64-static" ;;
-        x86) qemu="qemu-i386-static" ;;
-        x86_64) qemu="qemu-x86_64-static" ;;
-        *) qemu="" ;;
-        esac
-    fi
-    echo ${qemu}
 }
 
 get_uuid()
@@ -241,9 +223,6 @@ chroot_exec()
             mounts="${mounts} -b ${MOUNTS// / -b }"
         fi
         local emulator
-        if [ -z "${EMULATOR}" ]; then
-            EMULATOR=$(get_qemu ${ARCH})
-        fi
         if [ -n "${EMULATOR}" ]; then
             emulator="-q ${EMULATOR}"
         fi
@@ -258,16 +237,6 @@ chroot_exec()
         fi
     ;;
     esac
-}
-
-sync_env()
-{
-    local env_url="$1"
-    [ -n "${env_url}" ] || return 1
-    msg -n "Synchronization with server ... "
-    [ -e "${ENV_DIR}" ] || mkdir -p "${ENV_DIR}"
-    wget -q -O - "${env_url}" | tar xz -C "${ENV_DIR}" 1>&2
-    is_ok "fail" "done"
 }
 
 ################################################################################
@@ -944,8 +913,6 @@ container_status()
     local supported_fs=$(printf '%s ' $(grep -v nodev /proc/filesystems | sort))
     msg "${supported_fs}"
 
-    [ -n "${CHROOT_DIR}" ] || return 0
-
     msg -n "Installed system: "
     local linux_version=$([ -r "${CHROOT_DIR}/etc/os-release" ] && . "${CHROOT_DIR}/etc/os-release"; [ -n "${PRETTY_NAME}" ] && echo "${PRETTY_NAME}" || echo "unknown")
     msg "${linux_version}"
@@ -955,53 +922,11 @@ container_status()
     component_exec "${INCLUDE}"
 
     msg "Mounted parts: "
-    local is_mnt=0
     local item
     for item in $(grep "${CHROOT_DIR%/}" /proc/mounts | awk '{print $2}' | sed "s|${CHROOT_DIR%/}/*|/|g")
     do
         msg "* ${item}"
-        local is_mnt=1
     done
-    [ "${is_mnt}" -ne 1 ] && msg " ...nothing mounted"
-
-    msg "Available mount points: "
-    local is_mountpoints=0
-    local mp
-    for mp in $(grep -v "${CHROOT_DIR%/}" /proc/mounts | grep ^/ | awk '{print $2":"$3}')
-    do
-        local part=$(echo ${mp} | awk -F: '{print $1}')
-        local fstype=$(echo ${mp} | awk -F: '{print $2}')
-        local block_size=$(stat -c '%s' -f ${part})
-        local available=$(stat -c '%a' -f ${part} | awk '{printf("%.1f",$1*'${block_size}'/1024/1024/1024)}')
-        local total=$(stat -c '%b' -f ${part} | awk '{printf("%.1f",$1*'${block_size}'/1024/1024/1024)}')
-        if [ -n "${available}" -a -n "${total}" ]; then
-            msg "* ${part}  ${available}/${total} GB (${fstype})"
-            is_mountpoints=1
-        fi
-    done
-    [ "${is_mountpoints}" -ne 1 ] && msg " ...no mount points"
-
-    msg "Available partitions: "
-    local is_partitions=0
-    local dev
-    for dev in /sys/block/*/dev
-    do
-        if [ -f ${dev} ]; then
-            local devname=$(echo ${dev} | sed -e 's@/dev@@' -e 's@.*/@@')
-            [ -e "/dev/${devname}" ] && local devpath="/dev/${devname}"
-            [ -e "/dev/block/${devname}" ] && local devpath="/dev/block/${devname}"
-            [ -n "${devpath}" ] && local parts=$(fdisk -l ${devpath} 2>/dev/null | grep ^/dev/ | awk '{print $1}')
-            local part
-            for part in ${parts}
-            do
-                local size=$(fdisk -l ${part} 2>/dev/null | grep 'Disk.*bytes' | awk '{ sub(/,/,""); print $3" "$4}')
-                local type=$(fdisk -l ${devpath} 2>/dev/null | grep ^${part} | tr -d '*' | awk '{str=$6; for (i=7;i<=10;i++) if ($i!="") str=str" "$i; printf("%s",str)}')
-                msg "* ${part}  ${size} (${type})"
-                local is_partitions=1
-            done
-        fi
-    done
-    [ "${is_partitions}" -ne 1 ] && msg " ...no available partitions"
 }
 
 helper()
@@ -1041,7 +966,6 @@ COMMANDS:
       -m - mount the container before start
    stop [-u] [NAME ...] - stop all included or only specified components
       -u - unmount the container after stop
-   sync URL - synchronize with the operating environment with server
    status [NAME ...] - display the status of the container and components
    help [NAME ...] - show this help or help of components
 
@@ -1085,6 +1009,9 @@ if [ -z "${TEMP_DIR}" ]; then
 fi
 if [ -z "${CHROOT_DIR}" ]; then
     CHROOT_DIR="${ENV_DIR}/mnt"
+fi
+if [ -z "${METHOD}" ]; then
+    METHOD="chroot"
 fi
 
 # parse options
@@ -1133,14 +1060,6 @@ WITHOUT_CHECK="false"
 WITHOUT_DEPENDS="false"
 REVERSE_DEPENDS="false"
 EXCLUDE_COMPONENTS=""
-case "${METHOD}" in
-proot)
-    CHROOT_DIR="${TARGET_PATH}"
-;;
-*)
-    METHOD="chroot"
-;;
-esac
 
 # make dirs
 [ -d "${CONFIG_DIR}" ] || mkdir "${CONFIG_DIR}"
@@ -1313,9 +1232,6 @@ stop)
     if [ "${umount_flag}" = "true" ]; then
         container_umount
     fi
-;;
-sync)
-    sync_env "$@"
 ;;
 status)
     if [ $# -gt 0 ]; then
