@@ -64,6 +64,9 @@ do_install()
     is_archive "${SOURCE_PATH}" && return 0
 
     msg ":: Installing ${COMPONENT} ... "
+    
+    local cache_dir="$TEMP_DIR/deploy/centos"
+    mkdir -p "${cache_dir}"
 
     local core_packages="audit-libs basesystem bash bzip2-libs ca-certificates chkconfig coreutils cpio cracklib cracklib-dicts cryptsetup-libs curl cyrus-sasl-lib dbus dbus-libs diffutils elfutils-libelf elfutils-libs expat file-libs filesystem gawk gdbm glib2 glibc glibc-common gmp gnupg2 gpgme grep gzip info keyutils-libs kmod kmod-libs krb5-libs libacl libassuan libattr libblkid libcap libcap-ng libcom_err libcurl libdb libdb-utils libffi libgcc libgcrypt libgpg-error libidn libmount libpwquality libselinux libsemanage libsepol libssh2 libstdc++ libtasn1 libuuid libverto libxml2 lua lz4 ncurses ncurses-base ncurses-libs nspr nss nss-pem nss-softokn nss-softokn-freebl nss-sysinit nss-tools nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pinentry pkgconfig popt pth pygpgme pyliblzma python python-iniparse python-libs python-pycurl python-urlgrabber pyxattr qrencode-libs readline rootfiles rpm rpm-build-libs rpm-libs rpm-python sed setup shadow-utils shared-mime-info sqlite sudo systemd systemd-libs tzdata ustr util-linux vim-minimal which xz-libs yum yum-metadata-parser yum-plugin-fastestmirror yum-utils zlib"
     local repo_url="${SOURCE_PATH%/}/${SUITE}/os/${ARCH}"
@@ -98,11 +101,13 @@ do_install()
         # download
         for i in 1 2 3
         do
-            wget -q -c -O "${CHROOT_DIR}/tmp/${pkg_file}" "${repo_url}/${pkg_url}" && break
+            [ -f "${cache_dir}/${pkg_file}" ] && break
+            wget -q -c -O "${cache_dir}/${pkg_file}" "${repo_url}/${pkg_url}" && break
             sleep 30s
         done
         [ "${package}" = "filesystem" ] && { msg "done"; continue; }
         # unpack
+        cp "${cache_dir}/${pkg_file}" "${CHROOT_DIR}/tmp/${pkg_file}"
         (cd "${CHROOT_DIR}"; rpm2cpio "./tmp/${pkg_file}" | cpio -idmu >/dev/null)
         is_ok "fail" "done" || return 1
     done

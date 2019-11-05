@@ -62,7 +62,7 @@ do_install()
     x86_64) repo_url="${SOURCE_PATH%/}/slackware64-${SUITE}/slackware64" ;;
     esac
 
-    local cache_dir="${CHROOT_DIR}/tmp"
+    local cache_dir="${TEMP_DIR}/deploy/slackware"
     local base_packages="l/glibc l/glibc-i18n l/libtermcap l/ncurses ap/diffutils ap/groff ap/man ap/slackpkg ap/sudo n/gnupg n/wget"
 
     msg -n "Preparing for deployment ... "
@@ -70,7 +70,6 @@ do_install()
         cd "${CHROOT_DIR}"
         mkdir etc
         touch etc/fstab
-        mkdir tmp; chmod 1777 tmp
     exit 0)
     is_ok "fail" "done" || return 1
 
@@ -114,10 +113,6 @@ do_install()
     msg -n "Updating repository ... "
     slackpkg_repository
     is_ok "fail" "done"
-
-    msg -n "Clearing cache ... "
-    rm -f "${cache_dir}"/*
-    is_ok "skip" "done"
 
     return 0
 }

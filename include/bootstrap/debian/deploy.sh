@@ -52,10 +52,14 @@ do_install()
     local include_packages="locales,sudo,man-db"
     local exclude_packages="init,systemd-sysv"
     #selinux_support && include_packages="${include_packages},selinux-basics"
-
+    
+    local cache_dir="${TEMP_DIR}/deploy/debian"
+    
+    mkdir -p "${cache_dir}"
+    
     (set -e
         DEBOOTSTRAP_DIR="$(component_dir bootstrap/debian)/debootstrap"
-        . "${DEBOOTSTRAP_DIR}/debootstrap" --no-check-gpg --foreign --extractor=ar --arch="${ARCH}" --exclude="${exclude_packages}" --include="${include_packages}" "${SUITE}" "${CHROOT_DIR}" "${SOURCE_PATH}"
+        . "${DEBOOTSTRAP_DIR}/debootstrap" --cache-dir="${cache_dir}" --no-check-gpg --foreign --extractor=ar --arch="${ARCH}" --exclude="${exclude_packages}" --include="${include_packages}" "${SUITE}" "${CHROOT_DIR}" "${SOURCE_PATH}"
     exit 0)
     is_ok || return 1
 
@@ -74,6 +78,10 @@ do_install()
       apt_install ${EXTRA_PACKAGES}
       is_ok || return 1
     fi
+    
+    msg -n "Clearing cache ... "
+    rm -f "${CHROOT_DIR}/var/cache/apt/archives"/*
+    is_ok "skip" "done"
 
     return 0
 }

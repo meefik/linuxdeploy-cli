@@ -63,8 +63,10 @@ do_install()
     esac
 
     msg -n "Preparing for deployment ... "
-    local cache_dir="${CHROOT_DIR}/var/cache/pacman/pkg"
+    
+    local cache_dir="${TEMP_DIR}/deploy/archlinux"
     mkdir -p "${cache_dir}"
+    
     is_ok "fail" "done" || return 1
 
     msg -n "Retrieving packages list ... "
@@ -80,6 +82,7 @@ do_install()
         local i
         for i in 1 2 3
         do
+            [ -f "${cache_dir}/${pkg_file}" ] && break
             wget -q -c -O "${cache_dir}/${pkg_file}" "${repo_url}/${pkg_file}" && break
             sleep 30s
         done

@@ -216,7 +216,8 @@ chroot_exec()
     ;;
     proot)
         if [ -z "${PROOT_TMP_DIR}" ]; then
-            export PROOT_TMP_DIR="${TEMP_DIR}"
+            export PROOT_TMP_DIR="${TEMP_DIR}/proot"
+            mkdir -p "${TEMP_DIR}/proot"
         fi
         local mounts="-b /proc -b /dev -b /sys"
         if [ -n "${MOUNTS}" ]; then
