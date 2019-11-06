@@ -15,7 +15,7 @@ then
     esac
 fi
 
-[ -n "${SOURCE_PATH}" ] || SOURCE_PATH="http://192.168.1.10/pub/fedoraproject.org"
+[ -n "${SOURCE_PATH}" ] || SOURCE_PATH="http://dl.fedoraproject.org/pub"
 
 dnf_install()
 {
