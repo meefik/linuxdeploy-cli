@@ -92,21 +92,10 @@ do_install()
 
     component_exec core/mnt core/net
 
-    # TODO: Remove this before creating PR
-    msg -n "Replacing urls to local mirror ..."
-    chroot_exec /usr/bin/find /etc/yum.repos.d/ -name "*.repo" -type f -exec /usr/bin/sed -i 's/#baseurl=https\?:\/\/download.fedoraproject.org\/pub/baseurl=http:\/\/192.168.1.10\/pub\/fedoraproject.org/g' {} \;
-    is_ok "fail" "done"
-
-    # TODO: Remove this before creating PR
-    msg -n "Disabling metalink ..."
-    chroot_exec /usr/bin/find /etc/yum.repos.d/ -name "*.repo" -type f -exec /usr/bin/sed -i 's/metalink=/#metalink=/g' {} \;
-    is_ok "fail" "done"
-
     msg -n "Setting dnf excludes ..."
     echo "exclude=kernel* *-firmware grubby" >> "${CHROOT_DIR}"/etc/dnf/dnf.conf
     is_ok "fail" "done"
 
-    # TODO: Think about it before creating PR
     msg -n "Upgrading packages ..."
     chroot_exec -u root dnf -y upgrade --refresh
     is_ok "fail" "done"
