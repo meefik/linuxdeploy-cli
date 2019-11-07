@@ -93,7 +93,7 @@ do_install()
     component_exec core/mnt core/net
 
     msg -n "Setting dnf excludes ..."
-    echo "exclude=kernel* *-firmware grubby" >> "${CHROOT_DIR}"/etc/dnf/dnf.conf
+    echo "exclude=grubby" >> "${CHROOT_DIR}"/etc/dnf/dnf.conf
     is_ok "fail" "done"
 
     msg -n "Upgrading packages ..."
