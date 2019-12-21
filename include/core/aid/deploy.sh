@@ -21,25 +21,26 @@ do_configure()
     fi
     # add android groups
     if [ -n "${PRIVILEGED_USERS}" ]; then
-        local aid uid
+        local aid
         for aid in $(cat "${COMPONENT_DIR}/android_groups")
         do
             local xname=$(echo ${aid} | awk -F: '{print $1}')
             local xid=$(echo ${aid} | awk -F: '{print $2}')
-            sed -i "s|^${xname}:.*|${xname}:x:${xid}:${USER_NAME}|" "${CHROOT_DIR}/etc/group"
+            sed -i "s|^${xname}:.*|${xname}:x:${xid}:|" "${CHROOT_DIR}/etc/group"
             if ! $(grep -q "^${xname}:" "${CHROOT_DIR}/etc/group"); then
-                echo "${xname}:x:${xid}:${USER_NAME}" >> "${CHROOT_DIR}/etc/group"
+                echo "${xname}:x:${xid}:" >> "${CHROOT_DIR}/etc/group"
             fi
             if ! $(grep -q "^${xname}:" "${CHROOT_DIR}/etc/passwd"); then
                 echo "${xname}:x:${xid}:${xid}::/:/bin/false" >> "${CHROOT_DIR}/etc/passwd"
             fi
-            # add users to aid_inet group
-            for uid in ${PRIVILEGED_USERS}
-            do
-                if ! $(grep -q "^${xname}:.*${uid}" "${CHROOT_DIR}/etc/group"); then
-                    sed -i "s|^\(${xname}:.*\)|\1,${uid}|" "${CHROOT_DIR}/etc/group"
-                fi
-            done
+        done
+        local usr
+        for usr in ${PRIVILEGED_USERS}
+        do
+            local uid=${usr%%:*}
+            local gid=${usr##*:}
+            sed -i "s|^\(${gid}:.*:[^:]+\)$|\1,${uid}|" "${CHROOT_DIR}/etc/group"
+            sed -i "s|^\(${gid}:.*:\)$|\1${uid}|" "${CHROOT_DIR}/etc/group"
         done
     fi
     return 0
@@ -49,7 +50,7 @@ do_help()
 {
 cat <<EOF
    --privileged-users="${PRIVILEGED_USERS}"
-     A list of users separated by a space to be added to Android groups.
+     A list of users in a format UID:GID separated by a space to be added UID to GID.
 
 EOF
 }

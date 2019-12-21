@@ -110,8 +110,8 @@ Help for the parameters of the main components:
    --user-password="changeme"
      Password will be assigned to the specified user.
 
-   --privileged-users="android messagebus"
-     A list of users separated by a space to be added to Android groups.
+   --privileged-users="android:aid_inet android:aid_media_rw"
+     A list of users in a format UID:GID separated by a space to be added UID to GID.
 
 ```
 

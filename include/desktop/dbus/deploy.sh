@@ -16,7 +16,7 @@ do_install()
         pacman_install ${packages}
     ;;
     fedora:*)
-        packages="dbus"
+        packages="dbus dbus-tools"
         dnf_install ${packages}
     ;;
     centos:*)
