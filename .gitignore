@@ -2,3 +2,4 @@
 /rootfs/
 /tmp/
 /cli.conf
+*.bak
