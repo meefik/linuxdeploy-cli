@@ -787,9 +787,9 @@ rootfs_import()
     *tar)
         msg -n "Importing rootfs from tar archive ... "
         if [ -e "${rootfs_file}" ]; then
-            tar axf "${rootfs_file}" -C "${CHROOT_DIR}"
+            /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar axf "${rootfs_file}" -C "${CHROOT_DIR}"
         elif [ -z "${rootfs_file##http*}" ]; then
-            wget -q -O - "${rootfs_file}" | tar axf -C "${CHROOT_DIR}"
+            wget -q -O - "${rootfs_file}" | /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar axf -C "${CHROOT_DIR}"
         else
             msg "fail"; return 1
         fi
@@ -798,9 +798,9 @@ rootfs_import()
     *gz)
         msg -n "Importing rootfs from tar.gz archive ... "
         if [ -e "${rootfs_file}" ]; then
-            tar axf "${rootfs_file}" -C "${CHROOT_DIR}"
+            /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar axf "${rootfs_file}" -C "${CHROOT_DIR}"
         elif [ -z "${rootfs_file##http*}" ]; then
-            wget -q -O - "${rootfs_file}" | tar axf -C "${CHROOT_DIR}"
+            wget -q -O - "${rootfs_file}" | /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar axf -C "${CHROOT_DIR}"
         else
             msg "fail"; return 1
         fi
@@ -809,9 +809,9 @@ rootfs_import()
     *bz2)
         msg -n "Importing rootfs from tar.bz2 archive ... "
         if [ -e "${rootfs_file}" ]; then
-            tar axf "${rootfs_file}" -C "${CHROOT_DIR}"
+            /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar axf "${rootfs_file}" -C "${CHROOT_DIR}"
         elif [ -z "${rootfs_file##http*}" ]; then
-            wget -q -O - "${rootfs_file}" | tar axf -C "${CHROOT_DIR}"
+            wget -q -O - "${rootfs_file}" | /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar axf -C "${CHROOT_DIR}"
         else
             msg "fail"; return 1
         fi
@@ -820,9 +820,9 @@ rootfs_import()
     *xz)
         msg -n "Importing rootfs from tar.xz archive ... "
         if [ -e "${rootfs_file}" ]; then
-            tar axf "${rootfs_file}" -C "${CHROOT_DIR}"
+            /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar axf "${rootfs_file}" -C "${CHROOT_DIR}"
         elif [ -z "${rootfs_file##http*}" ]; then
-            wget -q -O - "${rootfs_file}" | tar axf -C "${CHROOT_DIR}"
+            wget -q -O - "${rootfs_file}" | /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar axf -C "${CHROOT_DIR}"
         else
             msg "fail"; return 1
         fi
@@ -831,9 +831,9 @@ rootfs_import()
     *zst)
         msg -n "Importing rootfs from tar.zst archive ... "
         if [ -e "${rootfs_file}" ]; then
-            tar axf "${rootfs_file}" -C "${CHROOT_DIR}"
+            /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar axf "${rootfs_file}" -C "${CHROOT_DIR}"
         elif [ -z "${rootfs_file##http*}" ]; then
-            wget -q -O - "${rootfs_file}" | tar axf -C "${CHROOT_DIR}"
+            wget -q -O - "${rootfs_file}" | /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar axf -C "${CHROOT_DIR}"
         else
             msg "fail"; return 1
         fi
@@ -857,23 +857,24 @@ rootfs_export()
     case "${rootfs_file}" in
     *gz)
         msg -n "Exporting rootfs as tar.gz archive ... "
-        tar acf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . >/dev/null
+        /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar acf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . >/dev/null
         is_ok "fail" "done" || return 1
     ;;
     *bz2)
         msg -n "Exporting rootfs as tar.bz2 archive ... "
-        tar acf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . >/dev/null
+        /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar acf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . >/dev/null
         is_ok "fail" "done" || return 1
     ;;
     *xz)
         msg -n "Exporting rootfs as tar.xz archive ... "
-        tar acf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . >/dev/null
+        /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar acf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . >/dev/null
         is_ok "fail" "done" || return 1
     ;;
     *zst)
         msg -n "Exporting rootfs as tar.zst archive ... "
-        tar acf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . >/dev/null
-        is_ok "fail" "done" || return 1    
+        /data/data/ru.meefik.linuxdeploy.shenqiu/files/bin/tar acf "${rootfs_file}" --exclude='./dev' --exclude='./sys' --exclude='./proc' -C "${CHROOT_DIR}" . >/dev/null
+        is_ok "fail" "done" || return 1  
+    ;;          
     *)
         msg "Incorrect filename, supported only gz, bz2 or xz archives(add tar.zstd Support )."
         return 1
