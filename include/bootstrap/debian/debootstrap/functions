@@ -390,7 +390,7 @@ get () {
 			fi
 			if [ ! -e "$dest2" ]; then
 				if [ -z "$from2" ] || ! just_get "$from2" "$dest2"; then
-					if ! just_get "$from" "$dest2"; then continue 2; fi
+					if ! just_get "$from" "$dest2"; then continue 1; fi
 				fi
 			fi
 			if [ "$checksum" != "" ]; then
