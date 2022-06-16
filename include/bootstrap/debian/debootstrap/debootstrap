@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-VERSION='1.0.114-meefik'
+VERSION='1.0.126-meefik'
 
 unset TMP TEMP TMPDIR || true
 
@@ -22,6 +22,7 @@ fi
 exec 4>&1
 
 LANG=C
+EXTRA_SUITES=""
 USE_COMPONENTS=main
 KEYRING=""
 DISABLE_KEYRING=""
@@ -45,6 +46,7 @@ CERTIFICATE=""
 CHECKCERTIF=""
 PRIVATEKEY=""
 CACHE_DIR=""
+INRELEASE_PATH=""
 
 DEF_MIRROR="http://deb.debian.org/debian"
 DEF_HTTPS_MIRROR="https://deb.debian.org/debian"
@@ -96,6 +98,8 @@ usage()
 
       --include=A,B,C        adds specified names to the list of base packages
       --exclude=A,B,C        removes specified packages from the list
+      --extra-suites=A,B,C   also use packages from the listed suites of the
+                             archive
       --components=A,B,C     use packages from the listed components of the
                              archive
       --variant=X            use variant X of the bootstrap scripts
@@ -123,6 +127,10 @@ usage()
       --private-key=file     read the private key from file
       --certificate=file     use the client certificate stored in file (PEM)
       --no-check-certificate do not check certificate against certificate authorities
+
+      --inrelease-path       determine the path to the InRelease file of the main
+                             archive relative to the normal position of an InRelease
+                             file
 EOF
 }
 
@@ -305,6 +313,18 @@ if [ $# != 0 ] ; then
 		export VERBOSE
 		shift 1
 		;;
+	    --extra-suites|--extra-suites=?*)
+		if [ "$1" = "--extra-suites" ] && [ -n "$2" ]; then
+			EXTRA_SUITES="$2"
+			shift 2
+                elif [ "$1" != "${1#--extra-suites=}" ]; then
+			EXTRA_SUITES="${1#--extra-suites=}"
+			shift 1
+		else
+			error 1 NEEDARG "option requires an argument %s" "$1"
+		fi
+		EXTRA_SUITES="$(echo "$EXTRA_SUITES" | tr , " ")"
+		;;
 	    --components|--components=?*)
 		if [ "$1" = "--components" ] && [ -n "$2" ]; then
 			USE_COMPONENTS="$2"
@@ -384,10 +404,10 @@ if [ $# != 0 ] ; then
 			CERTIFICATE="--certificate=$2"
 			shift 2
 		elif [ "$1" != "${1#--certificate=}" ]; then
-			CERTIFICATE="--certificate=${1#--certificate=}"
+			CERTIFICATE="--certificate=${1#--certificate=}" 
 			shift 1
 		else
-		       error 1 NEEDARG "option requires an argument %s" "$1"
+		       error 1 NEEDARG "option requires an argument %s" "$1" 
 		fi
 		;;
 	    --private-key|--private-key=?*)
@@ -395,15 +415,26 @@ if [ $# != 0 ] ; then
 			PRIVATEKEY="--private-key=$2"
 			shift 2
 		elif [ "$1" != "${1#--private-key=}" ]; then
-			PRIVATEKEY="--private-key=${1#--private-key=}"
+			PRIVATEKEY="--private-key=${1#--private-key=}" 
 			shift 1
 		else
-		       error 1 NEEDARG "option requires an argument %s" "$1"
+		       error 1 NEEDARG "option requires an argument %s" "$1" 
 		fi
 		;;
 	    --no-check-certificate)
 		CHECKCERTIF="--no-check-certificate"
 		shift
+		;;
+		--inrelease-path|--inrelease-path=?*)
+		if [ "$1" = "--inrelease-path" ] && [ -n "$2" ]; then
+			INRELEASE_PATH="$2"
+			shift 2
+		elif [ "$1" != "${1#--inrelease-path=}" ]; then
+			INRELEASE_PATH=${1#--inrelease-path=}
+			shift 1
+		else
+			error 1 NEEDARG "option requires an argument %s" "$1"
+		fi
 		;;
 	    -*)
 		error 1 BADARG "unrecognized or invalid option %s" "$1"
@@ -419,7 +450,10 @@ fi
 # do auto proxy discovery
 AUTOPROXY=""
 if ! doing_variant fakechroot && command -v apt-config >/dev/null; then
-    eval "$(apt-config shell AUTOPROXY Acquire::http::ProxyAutoDetect)"
+    eval "$(apt-config shell AUTOPROXY Acquire::http::Proxy-Auto-Detect)"
+    if [ -z "$AUTOPROXY" ]; then
+        eval "$(apt-config shell AUTOPROXY Acquire::http::ProxyAutoDetect)"
+    fi
     if [ -z "$http_proxy" ] && [ -x "$AUTOPROXY" ]; then
         http_proxy="$($AUTOPROXY)"
         if [ -n "$http_proxy" ]; then
@@ -438,6 +472,9 @@ fi
 
 if [ "$SECOND_STAGE_ONLY" = "true" ]; then
 	SUITE=$(cat "$DEBOOTSTRAP_DIR/suite")
+	if [ -e "$DEBOOTSTRAP_DIR/extra-suites" ]; then
+		EXTRA_SUITES=$(cat "$DEBOOTSTRAP_DIR/extra-suites")
+	fi
 	ARCH=$(cat "$DEBOOTSTRAP_DIR/arch")
 	USER_MIRROR=$(cat "$DEBOOTSTRAP_DIR/mirror")
 	if [ -e "$DEBOOTSTRAP_DIR/variant" ]; then
@@ -558,7 +595,7 @@ if ! in_path "sha${SHA_SIZE}sum" && ! in_path "sha${SHA_SIZE}"; then
 fi
 DEBOOTSTRAP_CHECKSUM_FIELD="SHA$SHA_SIZE"
 
-export ARCH SUITE TARGET CHROOT_CMD SHA_SIZE DEBOOTSTRAP_CHECKSUM_FIELD
+export ARCH SUITE EXTRA_SUITES TARGET CHROOT_CMD SHA_SIZE DEBOOTSTRAP_CHECKSUM_FIELD
 
 if [ ! -e "$SCRIPT" ]; then
 	error 1 NOSCRIPT "No such script: %s" "$SCRIPT"
@@ -719,6 +756,8 @@ if am_doing_phase save_variables; then
 	echo "$ARCH"			>"$TARGET/debootstrap/arch"
 	echo "$SUITE"			>"$TARGET/debootstrap/suite"
 	echo "$USER_MIRROR"		>"$TARGET/debootstrap/mirror"
+	[ "" = "$EXTRA_SUITES" ] ||
+	echo "$EXTRA_SUITES"		>"$TARGET/debootstrap/extra-suites"
 	[ "" = "$VARIANT" ] ||
 	echo "$VARIANT"			>"$TARGET/debootstrap/variant"
 	echo "$required"		>"$TARGET/debootstrap/required"
@@ -754,6 +793,8 @@ if am_doing_phase first_stage; then
 		cp "$DEBOOTSTRAP_DIR"/scripts/*-common	"$TARGET/debootstrap/"
 		echo "$ARCH"			>"$TARGET/debootstrap/arch"
 		echo "$SUITE"			>"$TARGET/debootstrap/suite"
+		[ "" = "$EXTRA_SUITES" ] ||
+		echo "$EXTRA_SUITES"		>"$TARGET/debootstrap/extra-suites"
 		echo "$USER_MIRROR"		>"$TARGET/debootstrap/mirror"
 		[ "" = "$VARIANT" ] ||
 		echo "$VARIANT"			>"$TARGET/debootstrap/variant"
@@ -808,7 +849,7 @@ fi
 
 if am_doing_phase kill_target; then
 	if [ "$KEEP_DEBOOTSTRAP_DIR" != true ]; then
-		info KILLTARGET "Deleting target directory"
+                info KILLTARGET "Deleting target directory"
 		rm -rf "$TARGET"
 	fi
 fi
