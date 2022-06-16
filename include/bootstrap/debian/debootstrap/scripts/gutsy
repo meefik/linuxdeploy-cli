@@ -40,6 +40,18 @@ case $ARCH in
 	*)          LIBC="libc6" ;;
 esac
 
+case $SUITE in
+	gutsy|hardy|intrepid|jaunty|karmic|lucid|maverick|natty|oneiric|precise|quantal|raring|saucy|trusty|utopic|vivid|wily|xenial|yakkety|zesty|artful|bionic|cosmic|disco|eoan|focal|groovy|hirsute) ;;
+	*)
+		# impish+ will use zstd compression, check if supported
+		dpkg_zstd="$(dpkg-deb --help 2>/dev/null | grep ' zstd,' || :)"
+		if [ -z "$EXTRACTOR_OVERRIDE" ] && [ -z "$dpkg_zstd" ]; then
+			info CHOSENEXTRACTOR "%s uses zstd compression, setting --extractor=ar option" "$SUITE"
+			export EXTRACTOR_OVERRIDE=ar
+		fi
+	;;
+esac
+
 work_out_debs () {
 	required="$(get_debs Priority: required)"
 
@@ -60,9 +72,40 @@ work_out_debs () {
 
 	case $MIRRORS in
 	    https://*)
-		base="$base apt-transport-https ca-certificates"
+		case "$CODENAME" in
+			gutsy|hardy|intrepid|jaunty|karmic|lucid|maverick|natty|oneiric|precise|quantal|raring|saucy|trusty|utopic|vivid|wily|xenial|yakkety|zesty)
+			base="$base apt-transport-https ca-certificates"
+			;;
+			*)
+			base="$base ca-certificates"
+			;;
+		esac
 		;;
 	esac
+
+	# do not install usrmerge in fresh bootstraps
+	# but do print it for germinate to accept it into minimal
+	if [ "$WHAT_TO_DO" = "finddebs printdebs kill_target" ]; then
+		case "$CODENAME" in
+			# "merged-usr" blacklist for past releases
+			gutsy|hardy|intrepid|jaunty|karmic|lucid|maverick|natty|oneiric|precise|quantal|raring|saucy|trusty|utopic|vivid|wily|xenial|yakkety|zesty|artful|bionic|cosmic|disco|eoan|focal|groovy)
+			;;
+			hirsute)
+				# keep hirsute buildd chroots split-usr to allow for escape hatch
+				if ! doing_variant buildd; then
+					if [ -z "$MERGED_USR" ] || [ "$MERGED_USR" = "yes" ]; then
+						base="$base usrmerge"
+					fi
+				fi
+				;;
+			*)
+				# all future series post hirsute use merged-usr in buildd chroots too
+				if [ -z "$MERGED_USR" ] || [ "$MERGED_USR" = "yes" ]; then
+					base="$base usrmerge"
+				fi
+				;;
+		esac
+	fi
 }
 
 first_stage_install () {
@@ -71,7 +114,25 @@ first_stage_install () {
 		gutsy|hardy|intrepid|jaunty|karmic|lucid|maverick|natty|oneiric|precise|quantal|raring|saucy|trusty|utopic|vivid|wily|xenial|yakkety|zesty|artful|bionic|cosmic)
 			[ -z "$MERGED_USR" ] && MERGED_USR="no"
 			;;
+		disco|eoan|focal|groovy)
+			# see https://bugs.debian.org/838388
+			EXTRACT_DEB_TAR_OPTIONS="$EXTRACT_DEB_TAR_OPTIONS -k"
+			;;
+		hirsute)
+			# keep hirsute buildd chroots split-usr to allow for escape hatch
+			if [ -z "$MERGED_USR" ]; then
+				if doing_variant buildd; then
+					MERGED_USR="no"
+				else
+					MERGED_USR="yes"
+				fi
+			fi
+			# see https://bugs.debian.org/838388
+			EXTRACT_DEB_TAR_OPTIONS="$EXTRACT_DEB_TAR_OPTIONS -k"
+			;;
 		*)
+			# all future series post hirsute use merged-usr in buildd chroots too
+			[ -z "$MERGED_USR" ] && MERGED_USR="yes"
 			# see https://bugs.debian.org/838388
 			EXTRACT_DEB_TAR_OPTIONS="$EXTRACT_DEB_TAR_OPTIONS -k"
 			;;

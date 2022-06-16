@@ -1,3 +1,15 @@
+
+# For PureOS "amber"
+# PureOS: https://www.pureos.net/ 
+# Contact: https://tracker.pureos.net/
+
+mirror_style release
+download_style apt
+finddebs_style from-indices
+variants - buildd fakechroot minbase
+keyring /usr/share/keyrings/pureos-archive-keyring.gpg
+default_mirror https://repo.pureos.net/pureos/
+
 if doing_variant fakechroot; then
 	test "$FAKECHROOT" = "true" || error 1 FAKECHROOTREQ "This variant requires fakechroot environment to be started"
 fi
@@ -16,6 +28,9 @@ work_out_debs () {
 		#required="$required $(get_debs Priority: important)"
 		#  ^^ should be getting debconf here somehow maybe
 		base="$(get_debs Priority: important)"
+
+		# we want the PureOS minimal dependency set to be installed
+		base="$base pureos-minimal"
 	elif doing_variant buildd; then
 		base="apt build-essential"
 	elif doing_variant minbase; then
@@ -29,40 +44,14 @@ work_out_debs () {
 
 	case $MIRRORS in
 	    https://*)
-		case "$CODENAME" in
-			# apt-transport-https exists from lenny to stretch
-			lenny|squeeze|wheezy|jessie*|stretch)
-			base="$base apt-transport-https ca-certificates"
-			;;
-			*)
-			base="$base ca-certificates"
-			;;
-		esac
+		base="$base ca-certificates"
 		;;
 	esac
 }
 
 first_stage_install () {
-	# Set up correct EXTRACT_DEB_TAR_OPTIONS
-	case "$CODENAME" in
-		etch*|lenny|squeeze|wheezy|jessie*)
-			;;
-		*)
-			# see https://bugs.debian.org/838388
-			EXTRACT_DEB_TAR_OPTIONS="$EXTRACT_DEB_TAR_OPTIONS -k"
-			;;
-	esac
-
-	case "$CODENAME" in
-		# If not specified, default to split-usr on older releases
-		etch*|lenny|squeeze|wheezy|jessie*|stretch|ascii|buster|beowulf|bullseye)
-			[ -z "$MERGED_USR" ] && MERGED_USR="no"
-			;;
-		# Always use merged-usr on bookworm+ and its derivatives
-		*)
-			MERGED_USR="yes"
-			;;
-	esac
+	MERGED_USR="yes"
+	EXTRACT_DEB_TAR_OPTIONS="$EXTRACT_DEB_TAR_OPTIONS -k"
 
 	setup_merged_usr
 	extract $required
@@ -78,15 +67,9 @@ first_stage_install () {
 	fi
 
 	setup_devices
-
-	if doing_variant fakechroot || [ "$CONTAINER" = "docker" ]; then
-		setup_proc_symlink
-	fi
 }
 
 second_stage_install () {
-	in_target /bin/true
-
 	setup_dynamic_devices
 
 	x_feign_install () {
@@ -115,7 +98,9 @@ Status: install ok installed" >> "$TARGET/var/lib/dpkg/status"
 		baseprog="$(($baseprog + ${1:-1}))"
 	}
 
-	if ! doing_variant fakechroot; then
+	if doing_variant fakechroot; then
+		setup_proc_fakechroot
+	else
 		setup_proc
 		in_target /sbin/ldconfig
 	fi
@@ -173,6 +158,12 @@ Status: install ok installed" >> "$TARGET/var/lib/dpkg/status"
 		dpkg_progress $baseprog $bases UNPACKREQ "Unpacking required packages" UNPACKING
 
 	info CONFREQ "Configuring required packages..."
+
+	if doing_variant fakechroot && [ -e "$TARGET/var/lib/dpkg/info/initscripts.postinst" ]
+	then
+		# fix initscripts postinst (no mounting possible, and wrong if condition)
+		sed -i '/dpkg.*--compare-versions/ s/\<lt\>/lt-nl/' "$TARGET/var/lib/dpkg/info/initscripts.postinst"
+	fi
 
 	echo \
 "#!/bin/sh
