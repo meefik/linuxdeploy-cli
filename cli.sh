@@ -534,20 +534,19 @@ container_mounted()
 
 fs_check()
 {
-    if is_mounted "${CHROOT_DIR}"; then
-        return 1
-    fi
-    local checkfs=$(which e2fsck)
-    if [ -z "${checkfs}" ]; then
-        return 1
-    fi
+    is_mounted "${CHROOT_DIR}" && return 254
+
+    local checkfs
+    checkfs=$(command -v e2fsck 2>/dev/null) || return 254
+    [ -n "${checkfs}" ] || return 254
+
     case "${TARGET_TYPE}" in
-    file|partition)
-        ${checkfs} -p "${TARGET_PATH}" >/dev/null
-        return 0
-    ;;
+        file|partition)
+            "${checkfs}" -p "${TARGET_PATH}" >/dev/null 2>&1
+            return $?
+        ;;
     esac
-    return 1
+    return 254
 }
 
 mount_part()
@@ -679,7 +678,17 @@ container_mount()
 
     msg -n "Checking file system ... "
     fs_check
-    is_ok "skip" "done"
+    local fs_rc=$?
+    case "${fs_rc}" in
+        0)   msg "done" ;;
+        1)   msg "corrected" ;;
+        2|3) msg "corrected (reboot/recheck indicated)" ;;
+        254) msg "skip" ;;
+        *)
+            msg "fail (e2fsck rc=${fs_rc})"
+            return 1
+        ;;
+    esac
 
     msg "Mounting the container: "
     local item
