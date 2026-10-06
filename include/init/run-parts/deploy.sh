@@ -10,7 +10,7 @@ run_part()
     local action="$2"
     msg -n "${path##*/} ... "
     if [ "${INIT_ASYNC}" = "true" ]; then
-        chroot_exec -u ${INIT_USER} "${path} ${action}" 1>&2 &
+        chroot_exec -u ${INIT_USER} "${path} ${action}" </dev/null 1>&2 &
     else
         chroot_exec -u ${INIT_USER} "${path} ${action}" 1>&2
     fi

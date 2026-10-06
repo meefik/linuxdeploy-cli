@@ -17,7 +17,7 @@ do_start()
         do
             msg -n "${item/S[0-9][0-9]/} ... "
             if [ "${INIT_ASYNC}" = "true" ]; then
-                chroot_exec -u ${INIT_USER} "/etc/rc${INIT_LEVEL}.d/${item} start" 1>&2 &
+                chroot_exec -u ${INIT_USER} "/etc/rc${INIT_LEVEL}.d/${item} start" </dev/null 1>&2 &
             else
                 chroot_exec -u ${INIT_USER} "/etc/rc${INIT_LEVEL}.d/${item} start" 1>&2
             fi
@@ -40,7 +40,7 @@ do_stop()
         do
             msg -n "${item/K[0-9][0-9]/} ... "
             if [ "${INIT_ASYNC}" = "true" ]; then
-                chroot_exec -u ${INIT_USER} "/etc/rc6.d/${item} stop" 1>&2 &
+                chroot_exec -u ${INIT_USER} "/etc/rc6.d/${item} stop" </dev/null 1>&2 &
             else
                 chroot_exec -u ${INIT_USER} "/etc/rc6.d/${item} stop" 1>&2
             fi

@@ -60,7 +60,7 @@ do_start()
     fi
     # exec sshd
     if [ "${METHOD}" = "proot" ]; then
-        chroot_exec -u root fakechroot /usr/sbin/sshd -p ${SSH_PORT} ${SSH_ARGS} &
+        chroot_exec -u root fakechroot /usr/sbin/sshd -p ${SSH_PORT} ${SSH_ARGS} </dev/null >/dev/null 2>&1 &
     else
         chroot_exec -u root /usr/sbin/sshd -p ${SSH_PORT} ${SSH_ARGS}
     fi

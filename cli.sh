@@ -109,11 +109,19 @@ is_mounted()
 {
     local mount_point="$1"
     [ -n "${mount_point}" ] || return 1
-    if $(grep -q " ${mount_point%/} " /proc/mounts); then
-        return 0
-    else
-        return 1
-    fi
+    mount_point="${mount_point%/}"
+    [ -n "${mount_point}" ] || mount_point="/"
+    awk -v m="${mount_point}" '$2 == m {found=1; exit} END {exit !found}' /proc/mounts
+}
+
+list_chroot_mounts()
+{
+    # List descendants only, deepest first, so nested bind mounts are released
+    # before their parents. Linux Deploy mount targets normally contain no
+    # whitespace; /proc/mounts escapes whitespace when present.
+    awk -v root="${CHROOT_DIR%/}/" 'index($2, root) == 1 {print length($2), $2}' /proc/mounts |
+        sort -k1,1nr -k2,2r |
+        awk '{ $1=""; sub(/^ /,""); print }'
 }
 
 is_archive()
@@ -128,16 +136,25 @@ is_archive()
 
 get_pids()
 {
-    local pid pidfile pids
-    for pid in $*
+    local pidfile pid pids proc_root
+    for pidfile in $*
     do
-        pidfile="${CHROOT_DIR}${pid}"
-        if [ -e "${pidfile}" ]; then
-            pid=$(cat "${pidfile}")
+        pidfile="${CHROOT_DIR}${pidfile}"
+        [ -e "${pidfile}" ] || continue
+        pid=$(cat "${pidfile}" 2>/dev/null)
+        case "${pid}" in
+            ''|*[!0-9]*) continue ;;
+        esac
+        [ -d "/proc/${pid}" ] || continue
+
+        # A stale PID file can point to a PID that Android has already reused.
+        # For real chroots, only accept a process whose root is this container.
+        if [ "${METHOD}" = "chroot" ]; then
+            proc_root=$(readlink "/proc/${pid}/root" 2>/dev/null)
+            [ "${proc_root}" = "${CHROOT_DIR%/}" ] || continue
         fi
-        if [ -e "/proc/${pid}" ]; then
-            pids="${pids} ${pid}"
-        fi
+
+        pids="${pids} ${pid}"
     done
     if [ -n "${pids}" ]; then
         echo ${pids}
@@ -525,20 +542,19 @@ container_mounted()
 
 fs_check()
 {
-    if is_mounted "${CHROOT_DIR}"; then
-        return 1
-    fi
-    local checkfs=$(which e2fsck)
-    if [ -z "${checkfs}" ]; then
-        return 1
-    fi
+    is_mounted "${CHROOT_DIR}" && return 254
+
+    local checkfs
+    checkfs=$(command -v e2fsck 2>/dev/null) || return 254
+    [ -n "${checkfs}" ] || return 254
+
     case "${TARGET_TYPE}" in
-    file|partition)
-        ${checkfs} -p "${TARGET_PATH}" >/dev/null
-        return 0
-    ;;
+        file|partition)
+            "${checkfs}" -p "${TARGET_PATH}" >/dev/null 2>&1
+            return $?
+        ;;
     esac
-    return 1
+    return 254
 }
 
 mount_part()
@@ -670,7 +686,17 @@ container_mount()
 
     msg -n "Checking file system ... "
     fs_check
-    is_ok "skip" "done"
+    local fs_rc=$?
+    case "${fs_rc}" in
+        0)   msg "done" ;;
+        1)   msg "corrected" ;;
+        2|3) msg "corrected (reboot/recheck indicated)" ;;
+        254) msg "skip" ;;
+        *)
+            msg "fail (e2fsck rc=${fs_rc})"
+            return 1
+        ;;
+    esac
 
     msg "Mounting the container: "
     local item
@@ -682,51 +708,460 @@ container_mount()
     return 0
 }
 
+pid_is_chrooted_here()
+{
+    local pid="$1" proc_root
+    case "${pid}" in ''|*[!0-9]*) return 1 ;; esac
+    [ -d "/proc/${pid}" ] || return 1
+    proc_root=$(readlink "/proc/${pid}/root" 2>/dev/null)
+    case "${proc_root}" in
+        "${CHROOT_DIR%/}"|"${CHROOT_DIR%/}"/*) return 0 ;;
+    esac
+    return 1
+}
+
+fuser_available()
+{
+    command -v fuser >/dev/null 2>&1 && return 0
+    if command -v busybox >/dev/null 2>&1; then
+        busybox --list 2>/dev/null | grep -qx 'fuser' && return 0
+    fi
+    return 1
+}
+
+run_fuser()
+{
+    if command -v fuser >/dev/null 2>&1; then
+        command fuser "$@"
+        return $?
+    fi
+    if command -v busybox >/dev/null 2>&1 && busybox --list 2>/dev/null | grep -qx 'fuser'; then
+        busybox fuser "$@"
+        return $?
+    fi
+    return 127
+}
+
+release_mount_fuser()
+{
+    # fuser -m can report host processes for shared bind-mounted filesystems.
+    # Treat its output only as candidates and kill processes whose /proc root
+    # proves they are actually inside this chroot.
+    local part="$1" pids pid comm valid="" foreign=""
+
+    fuser_available || return 2
+    pids=$(run_fuser -m "${part}" 2>/dev/null || true)
+    [ -n "${pids}" ] || return 1
+
+    for pid in ${pids}
+    do
+        case "${pid}" in ''|*[!0-9]*) continue ;; esac
+        [ "${pid}" = "$$" ] && continue
+        [ "${pid}" = "${PPID}" ] && continue
+        if pid_is_chrooted_here "${pid}"; then
+            valid="${valid} ${pid}"
+        else
+            foreign="${foreign} ${pid}"
+        fi
+    done
+
+    if [ -n "${valid}" ]; then
+        msg -n "fuser chroot holders:"
+        for pid in ${valid}
+        do
+            comm=""
+            IFS= read -r comm < "/proc/${pid}/comm" 2>/dev/null || true
+            msg -n " ${pid}${comm:+(${comm})}"
+        done
+        msg ""
+        for pid in ${valid}
+        do
+            kill -KILL "${pid}" 2>/dev/null || true
+        done
+        sleep 0.10
+    fi
+
+    if [ -n "${foreign}" ]; then
+        msg -n "fuser ignored non-chroot holders:"
+        for pid in ${foreign}
+        do
+            comm=""
+            IFS= read -r comm < "/proc/${pid}/comm" 2>/dev/null || true
+            msg -n " ${pid}${comm:+(${comm})}"
+        done
+        msg ""
+    fi
+
+    [ -n "${valid}" ] && return 0
+    return 3
+}
+
+pid_holds_chroot()
+{
+    local pid="$1" link fd target root="${CHROOT_DIR%/}"
+    case "${pid}" in ''|*[!0-9]*) return 1 ;; esac
+    [ -d "/proc/${pid}" ] || return 1
+    [ "${pid}" = "$$" ] && return 1
+    [ "${pid}" = "${PPID}" ] && return 1
+
+    for link in root cwd
+    do
+        target=$(readlink "/proc/${pid}/${link}" 2>/dev/null || true)
+        case "${target}" in
+            "${root}"|"${root}"/*) return 0 ;;
+        esac
+    done
+
+    for fd in /proc/${pid}/fd/*
+    do
+        [ -e "${fd}" -o -L "${fd}" ] || continue
+        target=$(readlink "${fd}" 2>/dev/null || true)
+        target=${target% (deleted)}
+        case "${target}" in
+            "${root}"|"${root}"/*) return 0 ;;
+        esac
+    done
+    return 1
+}
+
+pid_descendants_of()
+{
+    # Lightweight parent/child snapshot. Unlike pid_holds_chroot(), this does
+    # not inspect cwd/root/fds; it only reads /proc/PID/stat with shell builtins.
+    # It is used after the one expensive holder scan so descendant discovery
+    # does not repeat that scan's cost.
+    local seeds="$*" proc pid stat rest ppid parents="" descendants="" frontier next
+
+    for proc in /proc/[0-9]*
+    do
+        [ -r "${proc}/stat" ] || continue
+        pid=${proc##*/}
+        stat=""
+        IFS= read -r stat < "${proc}/stat" 2>/dev/null || continue
+        rest=${stat##*) }
+        [ "${rest}" != "${stat}" ] || continue
+        # /proc/PID/stat after the closing comm field begins: state ppid ...
+        set -- ${rest}
+        ppid=${2:-0}
+        case "${ppid}" in ''|*[!0-9]*) ppid=0 ;; esac
+        parents="${parents} ${pid}:${ppid}"
+    done
+
+    frontier="${seeds}"
+    while [ -n "${frontier}" ]
+    do
+        next=""
+        for proc in ${parents}
+        do
+            pid=${proc%%:*}
+            ppid=${proc#*:}
+            case " ${frontier} " in
+                *" ${ppid} "*)
+                    case " ${seeds} ${descendants} " in
+                        *" ${pid} "*) ;;
+                        *) descendants="${descendants} ${pid}"; next="${next} ${pid}" ;;
+                    esac
+                ;;
+            esac
+        done
+        frontier="${next}"
+    done
+
+    printf '%s
+' "${descendants}"
+}
+
+release_chroot_pid_scan()
+{
+    # Slow explicit fallback used only when requested with -k. Perform one
+    # expensive /proc holder scan (root/cwd/fds), then one much lighter PPID
+    # snapshot to include the holders' current descendants. This avoids a
+    # second expensive holder scan in the normal recovery path.
+    local proc pid comm holders="" descendants="" tracked=""
+
+    for proc in /proc/[0-9]*
+    do
+        [ -d "${proc}" ] || continue
+        pid=${proc##*/}
+        if pid_holds_chroot "${pid}"; then
+            case " ${holders} " in *" ${pid} "*) ;; *) holders="${holders} ${pid}" ;; esac
+        fi
+    done
+
+    [ -n "${holders}" ] || return 1
+
+    # Snapshot descendants immediately after identifying the holders. This
+    # catches helper children such as a shell's current sleep process without
+    # repeating the expensive root/cwd/fd checks for every PID.
+    descendants=$(pid_descendants_of ${holders})
+
+    msg -n "PID-scan chroot holders:"
+    for pid in ${holders}
+    do
+        comm=""
+        IFS= read -r comm < "/proc/${pid}/comm" 2>/dev/null || true
+        msg -n " ${pid}${comm:+(${comm})}"
+    done
+    msg ""
+
+    if [ -n "${descendants}" ]; then
+        msg -n "PID-scan descendants:"
+        for pid in ${descendants}
+        do
+            comm=""
+            IFS= read -r comm < "/proc/${pid}/comm" 2>/dev/null || true
+            msg -n " ${pid}${comm:+(${comm})}"
+        done
+        msg ""
+    fi
+
+    tracked="${holders} ${descendants}"
+
+    # Ask the complete captured tree to exit, then force only survivors. A
+    # bounded second full scan is available to the caller only if umount is
+    # still busy because of a process race after this snapshot.
+    for pid in ${tracked}
+    do
+        [ "${pid}" = "$$" ] && continue
+        [ "${pid}" = "${PPID}" ] && continue
+        kill -TERM "${pid}" 2>/dev/null || true
+    done
+    sleep 0.20
+    for pid in ${tracked}
+    do
+        [ "${pid}" = "$$" ] && continue
+        [ "${pid}" = "${PPID}" ] && continue
+        [ -d "/proc/${pid}" ] && kill -KILL "${pid}" 2>/dev/null || true
+    done
+    sleep 0.10
+    return 0
+}
+
+manual_pid_scan_hint()
+{
+    [ "${PID_SCAN_FALLBACK}" = "true" ] && return 0
+    [ "${PID_SCAN_HINTED}" = "true" ] && return 0
+    msg "Manual fallback available: retry with -k to scan /proc and terminate chroot holders."
+    PID_SCAN_HINTED="true"
+}
+
+try_manual_pid_scan()
+{
+    [ "${PID_SCAN_FALLBACK}" = "true" ] || return 2
+    case "${PID_SCAN_COUNT:-0}" in
+        0) msg -n "Manual PID holder scan ... " ;;
+        1) msg -n "Manual PID holder rescan ... " ;;
+        *) return 1 ;;
+    esac
+    PID_SCAN_COUNT=$(( ${PID_SCAN_COUNT:-0} + 1 ))
+    if release_chroot_pid_scan; then
+        msg "done"
+        return 0
+    fi
+    msg "no holders found"
+    return 1
+}
+
+loop_devices_for_target()
+{
+    local out line dev backing
+
+    out=$(losetup -j "${TARGET_PATH%/}" 2>/dev/null || true)
+    if [ -n "${out}" ]; then
+        printf '%s\n' "${out}" | while IFS= read -r line
+        do
+            dev=${line%%:*}
+            [ -n "${dev}" ] && printf '%s\n' "${dev}"
+        done
+        return 0
+    fi
+
+    losetup -a 2>/dev/null | while IFS= read -r line
+    do
+        case "${line}" in
+            *' ('*')')
+                dev=${line%%:*}
+                backing=${line##* (}
+                backing=${backing%)}
+                [ "${backing}" = "${TARGET_PATH%/}" ] && printf '%s\n' "${dev}"
+            ;;
+        esac
+    done
+}
+
 container_umount()
 {
     params_check TARGET_PATH || return 1
     container_mounted || { msg "The container is not mounted." ; return 0; }
 
     msg -n "Release resources ... "
-    local is_release=0
-    local lsof_full=$(lsof | awk '{print $1}' | grep -c '^lsof')
-    if [ "${lsof_full}" -eq 0 ]; then
-        local pids=$(lsof | grep "${CHROOT_DIR%/}" | awk '{print $1}' | uniq)
+    if release_mount_fuser "${CHROOT_DIR%/}"; then
+        msg "done"
     else
-        local pids=$(lsof | grep "${CHROOT_DIR%/}" | awk '{print $2}' | uniq)
+        case $? in
+            1) msg "done (no holders)" ;;
+            2) msg "fuser unavailable; continuing to unmount" ;;
+            3) msg "done (only non-chroot holders ignored)" ;;
+            *) msg "done" ;;
+        esac
     fi
-    kill_pids ${pids}; is_ok "fail" "done"
 
     msg "Unmounting partitions: "
-    local is_mnt=0
-    local mask
-    for mask in '.*' '*'
-    do
-        local parts=$(cat /proc/mounts | awk '{print $2}' | grep "^${CHROOT_DIR%/}/${mask}$" | sort -r)
-        local part
+    local parts part part_name fuser_rc loop loops
+    local failures=0
+    PID_SCAN_COUNT=0
+    PID_SCAN_HINTED="false"
+
+    parts=$(list_chroot_mounts)
+    if [ -z "${parts}" ]; then
+        msg " ...nothing mounted"
+    else
         for part in ${parts}
         do
-            local part_name=$(echo ${part} | sed "s|^${CHROOT_DIR%/}/*|/|g")
+            part_name=$(echo "${part}" | sed "s|^${CHROOT_DIR%/}/*|/|g")
             msg -n "${part_name} ... "
-            for i in 1 2 3
-            do
-                umount ${part} && break
-                sleep 1
-            done
-            is_ok "fail" "done"
-            is_mnt=1
-        done
-    done
-    [ "${is_mnt}" -eq 1 ]; is_ok " ...nothing mounted"
+            if umount "${part}"; then
+                msg "done"
+                continue
+            fi
 
-    local loop=$(losetup -a | grep "${TARGET_PATH%/}" | awk -F: '{print $1}')
-    if [ -n "${loop}" ]; then
-        msg -n "Disassociating loop device ... "
-        losetup -d "${loop}"
-        is_ok "fail" "done"
+            msg "busy"
+            msg -n "Fast holder lookup ... "
+            if release_mount_fuser "${part}"; then
+                msg -n "${part_name} retry ... "
+                if umount "${part}"; then
+                    msg "done"
+                    continue
+                fi
+                msg "still busy"
+            else
+                fuser_rc=$?
+                case "${fuser_rc}" in
+                    1) msg "no holders found" ;;
+                    2) msg "fuser unavailable" ;;
+                    3) msg "no chroot holders eligible for kill" ;;
+                    *) msg "holder lookup failed" ;;
+                esac
+            fi
+
+            if try_manual_pid_scan; then
+                msg -n "${part_name} retry after PID scan ... "
+                if umount "${part}"; then
+                    msg "done"
+                    continue
+                fi
+                msg "still busy"
+                if try_manual_pid_scan; then
+                    msg -n "${part_name} retry after PID rescan ... "
+                    if umount "${part}"; then
+                        msg "done"
+                        continue
+                    fi
+                    msg "fail"
+                fi
+            else
+                manual_pid_scan_hint
+            fi
+            failures=1
+        done
     fi
 
-    return 0
+    if is_mounted "${CHROOT_DIR}"; then
+        msg -n "/ ... "
+        if umount "${CHROOT_DIR}"; then
+            msg "done"
+        else
+            msg "busy"
+            msg -n "Fast holder lookup ... "
+            if release_mount_fuser "${CHROOT_DIR}"; then
+                msg -n "/ retry ... "
+                if umount "${CHROOT_DIR}"; then
+                    msg "done"
+                else
+                    msg "still busy"
+                    if try_manual_pid_scan; then
+                        msg -n "/ retry after PID scan ... "
+                        if umount "${CHROOT_DIR}"; then
+                            msg "done"
+                        else
+                            msg "still busy"
+                            if try_manual_pid_scan; then
+                                msg -n "/ retry after PID rescan ... "
+                                if umount "${CHROOT_DIR}"; then
+                                    msg "done"
+                                else
+                                    msg "fail"
+                                    failures=1
+                                fi
+                            else
+                                failures=1
+                            fi
+                        fi
+                    else
+                        manual_pid_scan_hint
+                        failures=1
+                    fi
+                fi
+            else
+                fuser_rc=$?
+                case "${fuser_rc}" in
+                    1) msg "no holders found" ;;
+                    2) msg "fuser unavailable" ;;
+                    3) msg "no chroot holders eligible for kill" ;;
+                    *) msg "holder lookup failed" ;;
+                esac
+                if try_manual_pid_scan; then
+                    msg -n "/ retry after PID scan ... "
+                    if umount "${CHROOT_DIR}"; then
+                        msg "done"
+                    else
+                        msg "still busy"
+                        if try_manual_pid_scan; then
+                            msg -n "/ retry after PID rescan ... "
+                            if umount "${CHROOT_DIR}"; then
+                                msg "done"
+                            else
+                                msg "fail"
+                                failures=1
+                            fi
+                        else
+                            failures=1
+                        fi
+                    fi
+                else
+                    manual_pid_scan_hint
+                    failures=1
+                fi
+            fi
+        fi
+    fi
+
+    # The mount table is the final authority. Do not report success while any
+    # configured chroot mount remains. Clear a transient earlier failure only
+    # if the mount table proves cleanup actually succeeded.
+    if is_mounted "${CHROOT_DIR}" || [ -n "$(list_chroot_mounts)" ]; then
+        failures=1
+    else
+        failures=0
+    fi
+
+    # Only detach loop devices whose backing file exactly matches TARGET_PATH.
+    if [ "${failures}" -eq 0 ]; then
+        loops=$(loop_devices_for_target)
+        for loop in ${loops}
+        do
+            msg -n "Disassociating loop device ${loop} ... "
+            if losetup -d "${loop}"; then
+                msg "done"
+            else
+                msg "fail"
+                failures=1
+            fi
+        done
+    fi
+
+    [ -z "$(loop_devices_for_target)" ] || failures=1
+    [ "${failures}" -eq 0 ]
 }
 
 container_start()
@@ -961,11 +1396,13 @@ COMMANDS:
    shell [-u USER] [COMMAND] - execute the specified command in the container, by default /bin/bash
       -u USER - switch to the specified user
    mount - mount the container
-   umount - unmount the container
+   umount [-k] - unmount the container
+      -k - after normal/fuser cleanup fails, allow a slow /proc holder scan and terminate proven chroot holders
    start [-m] [NAME ...] - start all included or only specified components
       -m - mount the container before start
-   stop [-u] [NAME ...] - stop all included or only specified components
+   stop [-u] [-k] [NAME ...] - stop all included or only specified components
       -u - unmount the container after stop
+      -k - with -u, allow the explicit slow /proc holder scan fallback if normal/fuser cleanup fails
    status [NAME ...] - display the status of the container and components
    help [NAME ...] - show this help or help of components
 
@@ -1060,6 +1497,7 @@ WITHOUT_CHECK="false"
 WITHOUT_DEPENDS="false"
 REVERSE_DEPENDS="false"
 EXCLUDE_COMPONENTS=""
+PID_SCAN_FALLBACK="false"
 
 # make dirs
 [ -d "${CONFIG_DIR}" ] || mkdir "${CONFIG_DIR}"
@@ -1181,6 +1619,22 @@ mount)
     container_mount
 ;;
 umount)
+    OPTIND=1
+    while getopts :k FLAG
+    do
+        case "${FLAG}" in
+        k)
+            PID_SCAN_FALLBACK="true"
+        ;;
+        *)
+            if [ ${OPTIND} -gt 1 ]; then
+                let OPTIND=OPTIND-1
+            fi
+            break
+        ;;
+        esac
+    done
+    shift $((OPTIND-1))
     container_umount
 ;;
 start)
@@ -1211,11 +1665,14 @@ start)
 stop)
     # parse options
     OPTIND=1
-    while getopts :u FLAG
+    while getopts :uk FLAG
     do
         case "${FLAG}" in
         u)
             umount_flag="true"
+        ;;
+        k)
+            PID_SCAN_FALLBACK="true"
         ;;
         *)
             if [ ${OPTIND} -gt 1 ]; then
@@ -1227,10 +1684,18 @@ stop)
     done
     shift $((OPTIND-1))
 
-    container_stop "$@" || exit 1
+    stop_rc=0
+    umount_rc=0
+    container_stop "$@" || stop_rc=$?
 
+    # If -u was requested, always attempt cleanup even when a component's
+    # do_stop failed. Report failure after the requested unmount has run.
     if [ "${umount_flag}" = "true" ]; then
-        container_umount
+        container_umount || umount_rc=$?
+    fi
+
+    if [ "${stop_rc}" -ne 0 -o "${umount_rc}" -ne 0 ]; then
+        exit 1
     fi
 ;;
 status)
