@@ -109,11 +109,19 @@ is_mounted()
 {
     local mount_point="$1"
     [ -n "${mount_point}" ] || return 1
-    if $(grep -q " ${mount_point%/} " /proc/mounts); then
-        return 0
-    else
-        return 1
-    fi
+    mount_point="${mount_point%/}"
+    [ -n "${mount_point}" ] || mount_point="/"
+    awk -v m="${mount_point}" '$2 == m {found=1; exit} END {exit !found}' /proc/mounts
+}
+
+list_chroot_mounts()
+{
+    # List descendants only, deepest first, so nested bind mounts are released
+    # before their parents. Linux Deploy mount targets normally contain no
+    # whitespace; /proc/mounts escapes whitespace when present.
+    awk -v root="${CHROOT_DIR%/}/" 'index($2, root) == 1 {print length($2), $2}' /proc/mounts |
+        sort -k1,1nr -k2,2r |
+        awk '{ $1=""; sub(/^ /,""); print }'
 }
 
 is_archive()
@@ -700,11 +708,40 @@ container_mount()
     return 0
 }
 
+loop_devices_for_target()
+{
+    local out line dev backing
+
+    out=$(losetup -j "${TARGET_PATH%/}" 2>/dev/null || true)
+    if [ -n "${out}" ]; then
+        printf '%s\n' "${out}" | while IFS= read -r line
+        do
+            dev=${line%%:*}
+            [ -n "${dev}" ] && printf '%s\n' "${dev}"
+        done
+        return 0
+    fi
+
+    losetup -a 2>/dev/null | while IFS= read -r line
+    do
+        case "${line}" in
+            *' ('*')')
+                dev=${line%%:*}
+                backing=${line##* (}
+                backing=${backing%)}
+                [ "${backing}" = "${TARGET_PATH%/}" ] && printf '%s\n' "${dev}"
+            ;;
+        esac
+    done
+}
+
 container_umount()
 {
     params_check TARGET_PATH || return 1
     container_mounted || { msg "The container is not mounted." ; return 0; }
 
+    # Keep the existing resource-release step in this commit. A later patch
+    # replaces its broad lsof scan with targeted fuser cleanup.
     msg -n "Release resources ... "
     local is_release=0
     local lsof_full=$(lsof | awk '{print $1}' | grep -c '^lsof')
@@ -716,35 +753,71 @@ container_umount()
     kill_pids ${pids}; is_ok "fail" "done"
 
     msg "Unmounting partitions: "
-    local is_mnt=0
-    local mask
-    for mask in '.*' '*'
-    do
-        local parts=$(cat /proc/mounts | awk '{print $2}' | grep "^${CHROOT_DIR%/}/${mask}$" | sort -r)
-        local part
+    local parts part part_name loop loops i
+    local failures=0
+
+    parts=$(list_chroot_mounts)
+    if [ -z "${parts}" ]; then
+        msg " ...nothing mounted"
+    else
         for part in ${parts}
         do
-            local part_name=$(echo ${part} | sed "s|^${CHROOT_DIR%/}/*|/|g")
+            part_name=$(echo "${part}" | sed "s|^${CHROOT_DIR%/}/*|/|g")
             msg -n "${part_name} ... "
             for i in 1 2 3
             do
-                umount ${part} && break
+                umount "${part}" && break
                 sleep 1
             done
-            is_ok "fail" "done"
-            is_mnt=1
+            if is_mounted "${part}"; then
+                msg "fail"
+                failures=1
+            else
+                msg "done"
+            fi
         done
-    done
-    [ "${is_mnt}" -eq 1 ]; is_ok " ...nothing mounted"
-
-    local loop=$(losetup -a | grep "${TARGET_PATH%/}" | awk -F: '{print $1}')
-    if [ -n "${loop}" ]; then
-        msg -n "Disassociating loop device ... "
-        losetup -d "${loop}"
-        is_ok "fail" "done"
     fi
 
-    return 0
+    if is_mounted "${CHROOT_DIR}"; then
+        msg -n "/ ... "
+        for i in 1 2 3
+        do
+            umount "${CHROOT_DIR}" && break
+            sleep 1
+        done
+        if is_mounted "${CHROOT_DIR}"; then
+            msg "fail"
+            failures=1
+        else
+            msg "done"
+        fi
+    fi
+
+    # The mount table is the final authority. Do not report success while any
+    # configured chroot mount remains.
+    if is_mounted "${CHROOT_DIR}" || [ -n "$(list_chroot_mounts)" ]; then
+        failures=1
+    fi
+
+    # Only detach loop devices whose backing file exactly matches TARGET_PATH.
+    if [ "${failures}" -eq 0 ]; then
+        loops=$(loop_devices_for_target)
+        for loop in ${loops}
+        do
+            msg -n "Disassociating loop device ${loop} ... "
+            if losetup -d "${loop}"; then
+                msg "done"
+            else
+                msg "fail"
+                failures=1
+            fi
+        done
+    fi
+
+    # Verify exact loop ownership after detach attempts.
+    [ -z "$(loop_devices_for_target)" ] || failures=1
+
+    [ "${failures}" -eq 0 ]
 }
 
 container_start()
