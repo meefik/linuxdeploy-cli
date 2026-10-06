@@ -1245,10 +1245,18 @@ stop)
     done
     shift $((OPTIND-1))
 
-    container_stop "$@" || exit 1
+    stop_rc=0
+    umount_rc=0
+    container_stop "$@" || stop_rc=$?
 
+    # If -u was requested, always attempt cleanup even when a component's
+    # do_stop failed. Report failure after the requested unmount has run.
     if [ "${umount_flag}" = "true" ]; then
-        container_umount
+        container_umount || umount_rc=$?
+    fi
+
+    if [ "${stop_rc}" -ne 0 -o "${umount_rc}" -ne 0 ]; then
+        exit 1
     fi
 ;;
 status)
