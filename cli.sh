@@ -128,16 +128,25 @@ is_archive()
 
 get_pids()
 {
-    local pid pidfile pids
-    for pid in $*
+    local pidfile pid pids proc_root
+    for pidfile in $*
     do
-        pidfile="${CHROOT_DIR}${pid}"
-        if [ -e "${pidfile}" ]; then
-            pid=$(cat "${pidfile}")
+        pidfile="${CHROOT_DIR}${pidfile}"
+        [ -e "${pidfile}" ] || continue
+        pid=$(cat "${pidfile}" 2>/dev/null)
+        case "${pid}" in
+            ''|*[!0-9]*) continue ;;
+        esac
+        [ -d "/proc/${pid}" ] || continue
+
+        # A stale PID file can point to a PID that Android has already reused.
+        # For real chroots, only accept a process whose root is this container.
+        if [ "${METHOD}" = "chroot" ]; then
+            proc_root=$(readlink "/proc/${pid}/root" 2>/dev/null)
+            [ "${proc_root}" = "${CHROOT_DIR%/}" ] || continue
         fi
-        if [ -e "/proc/${pid}" ]; then
-            pids="${pids} ${pid}"
-        fi
+
+        pids="${pids} ${pid}"
     done
     if [ -n "${pids}" ]; then
         echo ${pids}
