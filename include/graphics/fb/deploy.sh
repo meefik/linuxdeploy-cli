@@ -79,8 +79,8 @@ do_start()
     msg -n ":: Starting ${COMPONENT} ... "
     is_stopped /tmp/xsession.pid
     is_ok "skip" || return 0
-    fb_refresh &
-    (chroot_exec -u ${USER_NAME} xinit -- :${FB_DISPLAY} ${FB_ARGS} ; do_stop) &
+    fb_refresh </dev/null >/dev/null 2>&1 &
+    (chroot_exec -u ${USER_NAME} xinit -- :${FB_DISPLAY} ${FB_ARGS} ; do_stop) </dev/null >/dev/null 2>&1 &
     is_ok "fail" "done"
     case "${FB_FREEZE}" in
     stop)
