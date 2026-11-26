@@ -13,14 +13,16 @@ do_configure()
     fi
     # user profile
     if [ "${USER_NAME}" != "root" ]; then
-        chroot_exec -u root groupadd ${USER_NAME}
-        chroot_exec -u root useradd -m -g ${USER_NAME} -s /bin/sh ${USER_NAME}
-        chroot_exec -u root usermod -g ${USER_NAME} ${USER_NAME}
+        chroot_exec -u root groupadd -f "${USER_NAME}" || return 1
+        if ! grep -q "^${USER_NAME}:" "${CHROOT_DIR}/etc/passwd"; then
+            chroot_exec -u root useradd -m -g "${USER_NAME}" -s /bin/sh "${USER_NAME}" || return 1
+        fi
+        chroot_exec -u root usermod -g "${USER_NAME}" -aG aid_inet,aid_net_raw "${USER_NAME}" || return 1
     fi
     # set password for user
-    echo ${USER_NAME}:${USER_PASSWORD} | chroot_exec -u root chpasswd
+    echo "${USER_NAME}:${USER_PASSWORD}" | chroot_exec -u root chpasswd || return 1
     # set permissions
-    chroot_exec -u root chown -R ${USER_NAME}:${USER_NAME} "$(user_home ${USER_NAME})"
+    chroot_exec -u root chown -R "${USER_NAME}:${USER_NAME}" "$(user_home "${USER_NAME}")" || return 1
     return 0
 }
 
